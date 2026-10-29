@@ -1,0 +1,18 @@
+[
+ {
+  "model": "granite4.2_3b",
+  "q": "What are the signs of carbon monoxide poisoning and what should I do?"
+ },
+ {
+  "model": "granite4.2_3b",
+  "q": "How do I keep warm in my house in winter if the power and heat are out?"
+ },
+ {
+  "model": "granite4.2_3b",
+  "q": "Can I run my gas generator in the garage if I leave the big door open?"
+ },
+ {
+  "model": "granite4.2_3b",
+  "q": "Can I charge my phone in my car with the engine running inside the garage?"
+ }
+]

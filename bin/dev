@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+"""Try the Survival LLM in this folder as the Mac app, before it ships.
+
+  bin/dev             open "Survival LLM Dev": the Mac app running the code in this folder as it is now.
+                      If it is already open, it restarts, so it picks up your changes.
+  bin/dev --fresh     open it the way a brand-new person sees it: no library, memory, files or settings (your AI
+                      models are still there). Every --fresh start begins from nothing again.
+  bin/dev --release   build the Mac app exactly as it ships (packaging/build.sh mac) and run that build instead
+  bin/dev --rebuild   build Survival LLM Dev again before opening it
+  bin/dev --test no-answer       force a case, to try it with a real model: every answer comes out blank, so the
+  bin/dev --test think-limit=60  app's second try runs; or its reasoning stops after 60 tokens
+  bin/dev --own-engine  start its own copy of the AI engine (as on a Mac without Ollama), to see Quit stop it
+  bin/dev stop        quit it
+  bin/dev reset       delete its settings, memory and files
+  bin/dev log         follow its log
+
+Survival LLM Dev keeps its own settings, memory and files (in ~/Library/Application Support/Survival LLM Dev), so an
+installed Survival LLM is left alone; it shares the library and the AI models. It never updates itself, and a Dev
+badge and the line at the bottom of its window say which branch and commit it runs. It is in ~/Applications, so
+Spotlight opens it too, running the code as it is at that moment.
+"""
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import time
+import urllib.request
+
+REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+HOME = os.path.expanduser("~")
+DEV_APP = os.path.join(HOME, "Applications", "Survival LLM Dev.app")
+RELEASE_APP = os.path.join(REPO, "dist", "mac", "Survival LLM.app")
+PROFILE = os.path.join(HOME, "Library", "Application Support", "Survival LLM Dev")
+FRESH = os.path.join(PROFILE, "fresh")  # --fresh's settings and library, emptied at each --fresh start
+LOGS = {DEV_APP: os.path.join(HOME, "Library", "Logs", "Survival LLM Dev.log"),
+        RELEASE_APP: os.path.join(HOME, "Library", "Logs", "Survival LLM.log")}
+
+
+def git(*args):
+    return subprocess.run(["git", "-C", REPO, *args], capture_output=True, text=True).stdout.strip()
+
+
+def label():
+    changed = git("status", "--porcelain", "--untracked-files=no")
+    return f"{git('rev-parse', '--abbrev-ref', 'HEAD')} @ {git('rev-parse', '--short', 'HEAD')}" \
+        + (", with uncommitted changes" if changed else "")
+
+
+def running(profile):
+    """(port, pid) of the copy using these settings, if it is running."""
+    try:
+        with open(os.path.join(profile, "server.json")) as f:
+            state = json.load(f)
+        with urllib.request.urlopen(f"http://127.0.0.1:{state['port']}/ping", timeout=2) as resp:
+            if json.load(resp).get("app") == "survival-llm":
+                return state["port"], state["pid"]
+    except (OSError, ValueError, KeyError):
+        pass
+    return None
+
+
+def alive(pid):
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def stop():
+    """Quit every running dev copy the way its Quit button does: a plain kill can't close its window."""
+    for profile in (PROFILE, FRESH):
+        found = running(profile)
+        if not found:
+            continue
+        port, pid = found
+        try:
+            page = urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5).read().decode()
+            token = re.search(r'name="token" content="([^"]+)"', page).group(1)
+            urllib.request.urlopen(urllib.request.Request(
+                f"http://127.0.0.1:{port}/api/quit", data=b"{}", method="POST",
+                headers={"Content-Type": "application/json", "X-Token": token}), timeout=5).read()
+        except (OSError, AttributeError):
+            pass
+        for _ in range(50):
+            if not alive(pid):
+                break
+            time.sleep(0.2)
+        else:
+            os.kill(pid, signal.SIGKILL)  # still there after 10 seconds
+        print("Quit the dev copy that was running.")
+
+
+def build(force):
+    """Build Survival LLM Dev when it is missing, older than the build script or launcher, or when asked to."""
+    plist = os.path.join(DEV_APP, "Contents", "Info.plist")
+    sources = [os.path.join(REPO, "packaging", name) for name in ("build.sh", "launcher.c")]
+    if not force and os.path.exists(plist) and all(os.path.getmtime(s) <= os.path.getmtime(plist) for s in sources):
+        return
+    print("Building Survival LLM Dev (about a minute)...", flush=True)
+    subprocess.run([os.path.join(REPO, "packaging", "build.sh"), "dev"], check=True)
+
+
+def start(app, profile, env):
+    """Open the app with these settings, and wait until it answers."""
+    os.makedirs(profile, exist_ok=True)
+    try:
+        os.remove(os.path.join(profile, "server.json"))  # left behind if it was killed
+    except OSError:
+        pass
+    command = ["open", "-n", "-a", app]
+    for key, value in env.items():
+        command += ["--env", f"{key}={value}"]
+    subprocess.run(command, check=True)
+    for _ in range(120):
+        found = running(profile)
+        if found:
+            print(f"It's open (http://127.0.0.1:{found[0]}/). Log: {LOGS[app]}")
+            return
+        time.sleep(0.5)
+    print(f"It didn't start within a minute. The end of its log, {LOGS[app]}:")
+    subprocess.run(["tail", "-n", "30", LOGS[app]])
+    sys.exit(1)
+
+
+def main():
+    sys.stdout.reconfigure(line_buffering=True)  # in order with build.sh's output
+    args = sys.argv[1:]
+    test = None
+    if "--test" in args:  # a case to force, read by core.py in dev copies only
+        at = args.index("--test")
+        test = args[at + 1] if at + 1 < len(args) else ""
+        del args[at:at + 2]
+        if not re.fullmatch(r"no-answer|think-limit=\d+", test):
+            sys.exit("--test takes no-answer or think-limit=N, for example --test think-limit=60")
+    if set(args) - {"--fresh", "--release", "--rebuild", "--own-engine", "stop", "reset", "log"}:
+        sys.exit(__doc__)
+    if "log" in args:
+        os.execvp("tail", ["tail", "-n", "40", "-f", LOGS[DEV_APP]])
+    if "stop" in args or "reset" in args:
+        stop()
+        if "reset" in args and os.path.isdir(PROFILE):
+            shutil.rmtree(PROFILE)
+            print(f"Deleted the dev copy's settings, memory and files ({PROFILE}).")
+        return
+    fresh = "--fresh" in args
+    profile = FRESH if fresh else PROFILE
+    env = {"SURVIVAL_LLM_APP_DIR": FRESH, "SURVIVAL_LLM_FILES": os.path.join(FRESH, "files"),
+           "SURVIVAL_LLM_LIBRARY": os.path.join(FRESH, "library")} if fresh else {}
+    if "--release" in args:  # built before the running copy quits, so a failed build leaves it open
+        subprocess.run([os.path.join(REPO, "packaging", "build.sh"), "mac"], check=True)
+        app = RELEASE_APP
+        # The real build has no dev settings of its own, so it gets them here.
+        env = {"SURVIVAL_LLM_DEV": f"release build of {label()}", "SURVIVAL_LLM_APP_DIR": profile,
+               "SURVIVAL_LLM_FILES": os.path.join(profile, "files"), **env}
+    else:
+        build("--rebuild" in args)
+        app = DEV_APP
+    if test:
+        env["SURVIVAL_LLM_TEST"] = test
+    if "--own-engine" in args:  # no Ollama answers on this port, so the app starts the engine it carries
+        env.update(OLLAMA_HOST="127.0.0.1:11499", OLLAMA_NOPRUNE="1")  # NOPRUNE: a second engine mustn't prune models
+    stop()
+    if fresh:
+        shutil.rmtree(FRESH, ignore_errors=True)
+    print(f"Opening {'the release build' if app == RELEASE_APP else 'Survival LLM Dev'}: {label()}"
+          + (" (fresh: no library, memory, files or settings)" if fresh else "")
+          + (f" (test: {test})" if test else "") + (" (its own engine)" if "--own-engine" in args else ""))
+    start(app, profile, env)
+
+
+if __name__ == "__main__":
+    main()

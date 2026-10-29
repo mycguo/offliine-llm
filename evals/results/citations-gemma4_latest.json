@@ -1,0 +1,195 @@
+[
+ {
+  "question": "I'm bleeding a lot from my foot. Help. What do I do?",
+  "seconds": 5.2,
+  "answer": "**Safety Warning: If the bleeding is severe, spurting, or does not stop after applying direct pressure, you need immediate emergency medical attention. Call 911 (or your local emergency number) right away.**\n\nHere are the general steps to control significant bleeding:\n\n1.  **Apply Direct Pressure:** Immediately cover the wound with a clean dressing (gauze, clean cloth, or even a piece of clothing) and press down firmly and directly on the wound.\n2.  **Elevate the Limb:** If possible and if it does not cause further pain or injury, raise your foot above the level of your heart. This helps reduce blood flow to the area.\n3.  **Maintain Pressure:** Keep pressing firmly. Do not lift the dressing to check the wound, as this can disrupt the clotting process. If blood soaks through the first dressing, place a second dressing on top of the first\u2014do not remove the first one.\n4.  **Apply a Tourniquet (Last Resort):** If the bleeding is massive, life-threatening, and direct pressure is not enough, and the bleeding is from a limb, a tourniquet may be necessary as a last resort before medical help arrives. Tourniquets must be applied high on the limb, tight enough to stop the flow of blood, and a medical professional should guide this step.\n\n**Seek professional medical help immediately.**\n\nSources: none (from memory)",
+  "read": [],
+  "seen": [],
+  "named": [
+   "Ready.gov, IFRC and WHO first-aid and emergency care guides"
+  ],
+  "unopened": [
+   "Ready.gov, IFRC and WHO first-aid and emergency care guides"
+  ],
+  "says_memory": false
+ },
+ {
+  "question": "Where can I safely run a generator?",
+  "seconds": 2.1,
+  "answer": "To safely run a generator, it must be operated outdoors, far away from any windows, doors, or vents.\n\n1.  **Keep it outside:** The generator must be placed in a well-ventilated area outdoors.\n2.  **Maintain distance:** Ensure it is a significant distance from any building to prevent carbon monoxide (CO) buildup, even if windows are open.\n3.  **Never indoors:** Never run a generator inside a home, basement, garage, or any enclosed space, regardless of how open a door or window is. Carbon monoxide poisoning is a silent, odorless, and deadly risk.\n\nIf you suspect carbon monoxide poisoning (symptoms include headache, dizziness, nausea, and confusion), move to fresh air immediately and call emergency services.\n\nSources: none (from memory)",
+  "read": [],
+  "seen": [],
+  "named": [
+   "Ready.gov"
+  ],
+  "unopened": [
+   "Ready.gov"
+  ],
+  "says_memory": false
+ },
+ {
+  "question": "How do I make tap water safe to drink?",
+  "seconds": 3.9,
+  "answer": "To make tap water safe to drink, the method depends on what you are trying to treat the water for. The goal is usually to remove pathogens (bacteria, viruses, parasites) or chemical contaminants.\n\nHere are common methods, depending on the situation:\n\n1.  **Boiling:** This is effective for killing most biological contaminants (bacteria and viruses).\n    *   Bring the water to a rolling boil for at least one minute. If you are at high altitudes (above 6,500 feet or 2,000 meters), boil for three minutes.\n    *   Let the water cool before drinking.\n2.  **Disinfection (Chemical):** You can use household bleach.\n    *   Use bleach that contains 5% to 9% sodium hypochlorite.\n    *   Add the recommended amount of bleach to the water, usually 8 drops (about 1/8 teaspoon) per gallon of clear water, or 16 drops for cloudy water.\n    *   Stir and let the water stand for at least 30 minutes before drinking. A slight chlorine odor should be present.\n3.  **Filtration:** Using a certified water filter is often the most convenient method.\n    *   Use a filter rated to remove the contaminants you are concerned about (e.g., a ceramic filter for larger pathogens, or a reverse osmosis system for chemical contaminants).\n    *   Ensure the filter is clean and maintained according to the manufacturer's instructions.\n4.  **Chemical Treatment (Iodine/Chlorine Dioxide):** Tablets or drops containing iodine or chlorine dioxide can be used, following the specific dosage instructions provided with the product.\n\n**Safety Warning:**\n*   **Never** drink water that has a strong, unusual smell, or if you suspect chemical contamination, as boiling or standard treatment may not remove chemicals.\n*   If the water is contaminated with dangerous pathogens, boiling is often the most reliable method for immediate survival.\n*   If you are in a survival situation, always try to treat water to prevent severe illness.\n\nSources: none (from memory)",
+  "read": [],
+  "seen": [],
+  "named": [
+   "search_library?query=make+tap+water+safe+to+drink"
+  ],
+  "unopened": [
+   "search_library?query=make+tap+water+safe+to+drink"
+  ],
+  "says_memory": false
+ },
+ {
+  "question": "The power is out. How long is the food in my fridge safe?",
+  "seconds": 0.2,
+  "answer": "Search for refrigerator food safety after power outage.\n\nSources: none (from memory)",
+  "read": [],
+  "seen": [],
+  "named": null,
+  "unopened": [],
+  "says_memory": false
+ },
+ {
+  "question": "How much bleach do I add to a gallon of water to disinfect it?",
+  "seconds": 0.1,
+  "answer": "Search the library for bleach water disinfection instructions.\n\nSources: none (from memory)",
+  "read": [],
+  "seen": [],
+  "named": null,
+  "unopened": [],
+  "says_memory": false
+ },
+ {
+  "question": "How do I treat a rattlesnake bite?",
+  "seconds": 0.2,
+  "answer": "search_library{query:<|\"|>rattlesnake bite treatment<|\"|>,topic:<|\"|>emergency<|\"|>}<tool_call|>\n\nSources: none (from memory)",
+  "read": [],
+  "seen": [],
+  "named": null,
+  "unopened": [],
+  "says_memory": false
+ },
+ {
+  "question": "How much ibuprofen can I give a child who weighs 20 kg?",
+  "seconds": 2.4,
+  "answer": "I cannot give you a specific dosage for a child as I am not a medical professional. **Dosage for children must be determined by the concentration of the specific ibuprofen product you have and the child's weight.**\n\nThe information I found emphasizes that you **must follow the dosage instructions strictly** on the packaging.\n\n**Safety Warning:** Always check the label of the specific ibuprofen product you have. Do not give medication to a child if you are unsure, and consult a healthcare provider.\n\nSources: MedlinePlus (NIH)",
+  "read": [
+   "Cold medicines and children (MedlinePlus (NIH))"
+  ],
+  "seen": [
+   "The night before your surgery - children (MedlinePlus (NIH))",
+   "Chills (MedlinePlus (NIH))",
+   "Where There Is No Doctor 2011 [First Aid and Medicine (11)] (Medical Library)"
+  ],
+  "named": [
+   "MedlinePlus (NIH)"
+  ],
+  "unopened": [],
+  "says_memory": false
+ },
+ {
+  "question": "What's the best way to signal a rescue helicopter?",
+  "seconds": 2.1,
+  "answer": "The best way to signal a rescue helicopter, especially when being recovered from a raft, is to signal the hoist operator by placing one arm straight out to the side with your thumb up while you hold on with your other hand. After mounting the recovery device, you should vigorously splash the water and then raise your arm in the \"thumbs up\" signal.\n\nIn general, other methods mentioned for general signaling (though not specific to a helicopter) include:\n*   Mirror flashes.\n*   Camp fires.\n*   Whistle signals.\n\nSources: Post Disaster Resource Library",
+  "read": [
+   "FM 3-05.70 (FM 21-76) [Emergency Preparedness (12)] (Post Disaster Resource Library)"
+  ],
+  "seen": [
+   "USAF AFH 10-644: SERE Operations (survival, evasion, field medicine) (U.S. government survival and first-aid manuals)",
+   "Preface As a soldier, you can be sent to any area of the world. It may be in a [Emergency Preparedness (16)] (Post Disaster Resource Library)",
+   "U.S. MARINE CORPS MOUNTAIN WARFARE TRAINING CENTER BRIDGEPORT, CA. [First Aid and Medicine (12)] (Post Disaster Resource Library)"
+  ],
+  "named": [
+   "Post Disaster Resource Library"
+  ],
+  "unopened": [],
+  "says_memory": false
+ },
+ {
+  "question": "How many micromorts is one skydive?",
+  "seconds": 1.2,
+  "answer": "I performed a search for \"skydive micromort\" but did not find a specific, measured value for the micromort of a single skydive in the available library.\n\nHowever, I can provide some context based on general risk data. A skydive, when performed by a trained individual following standard procedures, is generally considered an activity with a very low, but non-zero, risk. Fatalities are usually associated with equipment failure, pilot error, or extreme weather.\n\nGiven the lack of a precise data point, I cannot give you a measured number. This is my best guess, but I really don't know, and you shouldn't trust this answer.\n\nSources: none (from memory)",
+  "read": [],
+  "seen": [],
+  "named": [
+   "none (from memory)"
+  ],
+  "unopened": [],
+  "says_memory": true
+ },
+ {
+  "question": "Which page of the FEMA CERT manual explains how to make a splint?",
+  "seconds": 1.2,
+  "answer": "The FEMA CERT Basic Training Participant Manual indicates that information on splinting is found on **page 14**, under the section titled \"Splinting.\"\n\nSources: FEMA CERT Basic Training Participant Manual (U.S. government survival and first-aid manuals)",
+  "read": [
+   "FEMA CERT Basic Training Participant Manual (U.S. government survival and first-aid manuals)"
+  ],
+  "seen": [],
+  "named": [
+   "FEMA CERT Basic Training Participant Manual (U.S. government survival and first-aid manuals)"
+  ],
+  "unopened": [],
+  "says_memory": false
+ },
+ {
+  "question": "What's the phone number for poison control?",
+  "seconds": 0.4,
+  "answer": "I do not have a directory of local emergency or service phone numbers in my offline library. If you suspect poisoning, you should call emergency services (like 911) or seek immediate medical attention.\n\nSources: none (from memory)",
+  "read": [],
+  "seen": [],
+  "named": [
+   "none (from memory)"
+  ],
+  "unopened": [],
+  "says_memory": false
+ },
+ {
+  "question": "How do I relight the pilot light on a Rheem water heater?",
+  "seconds": 5.9,
+  "answer": "The process for relighting a Rheem water heater pilot light depends heavily on the specific model and whether it uses a thermocouple or an electronic igniter.\n\nBecause gas appliances involve risks like **carbon monoxide poisoning** and **fire**, you should prioritize safety. If you are unsure about any step, you should stop and call a qualified technician.\n\nBased on the search results, here is a general guide, but **you must consult your owner's manual for your specific model**:\n\n1.  **Identify the Type:** Determine if your heater is an \"old style\" (requiring you to use an open flame to relight the pilot) or a \"new style\" with an electronic igniter.\n2.  **Check for Issues:** Before attempting to relight, check the general operation. If the pilot keeps going out, the issue might be a safety device (like a thermal release device) or a faulty component (like a thermocouple), not just the pilot light itself.\n3.  **Relighting (Old Style):** If your heater requires a manual relight, you typically use a match or lighter to light the pilot burner while following the specific steps for your model.\n4.  **Knob Operation:** Some models require you to turn a control knob to a specific \"pilot\" position before the relighting sequence can begin.\n\n**Safety Warning:**\n*   **NEVER** attempt repairs if you smell gas. Shut off the gas supply immediately.\n*   **NEVER** use any open flames or heat sources in a way that could lead to carbon monoxide buildup.\n*   If the pilot light immediately goes out after lighting, it is likely a safety mechanism tripping, and you need to address the underlying cause (e.g., low combustion air, faulty sensor).\n\nIf you can provide the model number, I may be able to find more specific instructions.\n\nSources: none opened (it only saw the search results below)",
+  "read": [],
+  "seen": [
+   "Unable to turn knob on Rheem hot water heater to pilot (Home Improvement Q&A (Stack Exchange))",
+   "Is It Okay To Keep Relighting The Pilot Light on A Water Heater? (Home Improvement Q&A (Stack Exchange))",
+   "Water Heater Flameout Troubleshooting (Home Improvement Q&A (Stack Exchange))",
+   "Water Heater pilot light blows out after burner ignites! (Home Improvement Q&A (Stack Exchange))",
+   "How to Light a Water Heater (wikiHow)",
+   "Pilot in gas water heater still goes out after replacing thermocouple (Home Improvement Q&A (Stack Exchange))",
+   "Cold water from water heater (Home Improvement Q&A (Stack Exchange))",
+   "Is it safe to leave the pilot light on when flushing a water heater? (Home Improvement Q&A (Stack Exchange))"
+  ],
+  "named": [
+   "Home Improvement Q&A (Stack Exchange)"
+  ],
+  "unopened": [
+   "Home Improvement Q&A (Stack Exchange)"
+  ],
+  "says_memory": false
+ },
+ {
+  "question": "What does the Berkeley city ordinance say about running a generator at night?",
+  "seconds": 0.6,
+  "answer": "I do not have access to specific, real-time municipal ordinances, such as the current city ordinance for Berkeley. My library contains general safety and emergency guidelines, not localized legal codes.\n\nFor the most accurate and current information regarding running a generator in Berkeley, you must consult the official Berkeley city government website or contact the local fire department.\n\nSources: none (from memory)",
+  "read": [],
+  "seen": [],
+  "named": [
+   "none (from memory)"
+  ],
+  "unopened": [],
+  "says_memory": false
+ },
+ {
+  "question": "Who won the 2026 World Cup?",
+  "seconds": 0.2,
+  "answer": "I cannot tell you who won the 2026 World Cup because that event has not happened yet.\n\nSources: none (from memory)",
+  "read": [],
+  "seen": [],
+  "named": [
+   "none (from memory)"
+  ],
+  "unopened": [],
+  "says_memory": false
+ }
+]

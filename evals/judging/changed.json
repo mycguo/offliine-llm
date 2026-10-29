@@ -1,0 +1,222 @@
+[
+ {
+  "model": "granite4.2",
+  "q": "The tap water might be contaminated. How many drops of household bleach per gallon make it safe?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "What are the signs of carbon monoxide poisoning and what should I do?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "Someone is shivering hard and acting confused after being out in the cold. What do I do?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "Someone cut their arm badly and it is bleeding a lot. What do I do?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "I burned my hand on the stove. How should I treat it?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "The power is out. How long can my insulin stay unrefrigerated?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "My phone is at 15% and the power is out. How do I make the battery last?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "A power line is down in my front yard. What should I do?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "The water is off and the toilet won't flush. What can I do for a toilet?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "How do I keep warm in my house in winter if the power and heat are out?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "Is canned food still safe to eat after it sat in floodwater?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "Is it safe to take ibuprofen that expired two years ago?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "How do I make oral rehydration solution at home?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "How can I tell if home-canned food might have botulism?"
+ },
+ {
+  "model": "granite4.2_30b",
+  "q": "Is it safe to use candles for light during a blackout?"
+ },
+ {
+  "model": "granite4.2_30b",
+  "q": "A power line is down in my front yard. What should I do?"
+ },
+ {
+  "model": "granite4.2_30b",
+  "q": "The water is off and the toilet won't flush. What can I do for a toilet?"
+ },
+ {
+  "model": "granite4.2_30b",
+  "q": "How do I keep warm in my house in winter if the power and heat are out?"
+ },
+ {
+  "model": "granite4.2_30b",
+  "q": "There has been a nuclear explosion nearby. What should I do?"
+ },
+ {
+  "model": "granite4.2_30b",
+  "q": "Is canned food still safe to eat after it sat in floodwater?"
+ },
+ {
+  "model": "granite4.2_30b",
+  "q": "Is it safe to take ibuprofen that expired two years ago?"
+ },
+ {
+  "model": "granite4.2_30b",
+  "q": "How can I tell if home-canned food might have botulism?"
+ },
+ {
+  "model": "granite4.2_3b",
+  "q": "The tap water might be contaminated. How many drops of household bleach per gallon make it safe?"
+ },
+ {
+  "model": "granite4.2_3b",
+  "q": "How long do I need to boil water to make it safe to drink?"
+ },
+ {
+  "model": "granite4.2_3b",
+  "q": "Someone is shivering hard and acting confused after being out in the cold. What do I do?"
+ },
+ {
+  "model": "granite4.2_3b",
+  "q": "I burned my hand on the stove. How should I treat it?"
+ },
+ {
+  "model": "granite4.2_3b",
+  "q": "There has been a nuclear explosion nearby. What should I do?"
+ },
+ {
+  "model": "local-ai1",
+  "q": "How do I keep warm in my house in winter if the power and heat are out?"
+ },
+ {
+  "model": "local-ai2",
+  "q": "Someone cut their arm badly and it is bleeding a lot. What do I do?"
+ },
+ {
+  "model": "local-ai2",
+  "q": "How do I keep warm in my house in winter if the power and heat are out?"
+ },
+ {
+  "model": "nemotron-3.5-lightning_30b-a3b-nvfp4",
+  "q": "Can I charge my phone in my car with the engine running inside the garage?"
+ },
+ {
+  "model": "nemotron-3.5-lightning_30b-a3b-nvfp4",
+  "q": "How do I keep warm in my house in winter if the power and heat are out?"
+ },
+ {
+  "model": "qwen3.6",
+  "q": "Is it safe to use candles for light during a blackout?"
+ },
+ {
+  "model": "qwen3.6",
+  "q": "How do I keep warm in my house in winter if the power and heat are out?"
+ },
+ {
+  "model": "qwen3.6",
+  "q": "Is canned food still safe to eat after it sat in floodwater?"
+ },
+ {
+  "model": "gemma4",
+  "q": "Can I charge my phone in my car with the engine running inside the garage?"
+ },
+ {
+  "model": "gemma4",
+  "q": "Can I run my gas generator in the garage if I leave the big door open?"
+ },
+ {
+  "model": "gemma4",
+  "q": "What are the signs of carbon monoxide poisoning and what should I do?"
+ },
+ {
+  "model": "gemma4",
+  "q": "How do I keep warm in my house in winter if the power and heat are out?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "Can I charge my phone in my car with the engine running inside the garage?"
+ },
+ {
+  "model": "granite4.2",
+  "q": "Can I run my gas generator in the garage if I leave the big door open?"
+ },
+ {
+  "model": "granite4.2_30b",
+  "q": "Can I charge my phone in my car with the engine running inside the garage?"
+ },
+ {
+  "model": "granite4.2_30b",
+  "q": "Can I run my gas generator in the garage if I leave the big door open?"
+ },
+ {
+  "model": "granite4.2_30b",
+  "q": "What are the signs of carbon monoxide poisoning and what should I do?"
+ },
+ {
+  "model": "local-ai1",
+  "q": "Can I charge my phone in my car with the engine running inside the garage?"
+ },
+ {
+  "model": "local-ai1",
+  "q": "Can I run my gas generator in the garage if I leave the big door open?"
+ },
+ {
+  "model": "local-ai1",
+  "q": "What are the signs of carbon monoxide poisoning and what should I do?"
+ },
+ {
+  "model": "local-ai2",
+  "q": "Can I charge my phone in my car with the engine running inside the garage?"
+ },
+ {
+  "model": "local-ai2",
+  "q": "Can I run my gas generator in the garage if I leave the big door open?"
+ },
+ {
+  "model": "local-ai2",
+  "q": "What are the signs of carbon monoxide poisoning and what should I do?"
+ },
+ {
+  "model": "nemotron-3.5-lightning_30b-a3b-nvfp4",
+  "q": "Can I run my gas generator in the garage if I leave the big door open?"
+ },
+ {
+  "model": "nemotron-3.5-lightning_30b-a3b-nvfp4",
+  "q": "What are the signs of carbon monoxide poisoning and what should I do?"
+ },
+ {
+  "model": "qwen3.6",
+  "q": "Can I charge my phone in my car with the engine running inside the garage?"
+ },
+ {
+  "model": "qwen3.6",
+  "q": "Can I run my gas generator in the garage if I leave the big door open?"
+ },
+ {
+  "model": "qwen3.6",
+  "q": "What are the signs of carbon monoxide poisoning and what should I do?"
+ }
+]

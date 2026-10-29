@@ -1,0 +1,9 @@
+{"id": "diabetes", "ok": true, "notes": ["Has type 1 diabetes and takes insulin."], "events": [{"type": "memory", "action": "add", "note": "Has type 1 diabetes and takes insulin."}], "secs": 10.7}
+{"id": "condition-long", "ok": true, "notes": ["7 months pregnant."], "events": [{"type": "memory", "action": "add", "note": "7 months pregnant."}], "secs": 6.9}
+{"id": "two-facts", "ok": true, "notes": ["Son Leo (9) has asthma.", "Has a dog."], "events": [{"type": "memory", "action": "add", "note": "Son Leo (9) has asthma."}, {"type": "memory", "action": "add", "note": "Has a dog."}], "secs": 9.4}
+{"id": "forget", "ok": true, "notes": ["Has two cats."], "events": [{"type": "memory", "action": "delete", "old": "Lives in Oakland, California."}], "secs": 7.7}
+{"id": "oneoff", "ok": true, "notes": ["Has two cats."], "events": [], "secs": 6.9}
+{"id": "no-repeat", "ok": true, "notes": ["Daughter Maya (7) is allergic to penicillin."], "events": [], "secs": 9.3}
+{"id": "update", "ok": true, "notes": ["Has a Champion 4500 dual fuel generator."], "events": [{"type": "memory", "action": "change", "note": "Has a Champion 4500 dual fuel generator.", "old": "Has a Honda EU2200i generator."}], "secs": 8.0}
+{"id": "file-matters", "ok": true, "notes": ["Owns a Honda EU2200i generator.", "Has the EU2200i manual in their files; prefers manual-specific advice over general advice."], "events": [{"type": "memory", "action": "add", "note": "Owns a Honda EU2200i generator."}, {"type": "memory", "action": "add", "note": "Has the EU2200i manual in their files; prefers manual-specific advice over general advice."}], "secs": 12.1}
+{"id": "preference", "ok": true, "notes": ["Name is Sam.", "Prefers very short answers."], "events": [{"type": "memory", "action": "add", "note": "Name is Sam."}, {"type": "memory", "action": "add", "note": "Prefers very short answers."}], "secs": 5.7}
