@@ -16,6 +16,7 @@ let pollTimer = null;
 let readerRequest = 0;     // ignore stale article loads
 let lastFocus = null;      // where focus returns when the reader closes
 let restarting = false;    // an update is installing; the app will restart
+let webSaving = false, webRevision = 0;
 const narrow = () => window.matchMedia("(max-width: 820px)").matches;
 
 class StaleTab extends Error {}
@@ -111,8 +112,11 @@ const isReady = () => state && state.ollama && state.models.length && state.libr
 const isLoaded = (model) => !!model && (state?.loaded || []).includes(model.replace(/:latest$/, ""));
 
 async function loadStatus() {
+  const revision = webRevision;
   try {
-    state = await (await api("/api/status")).json();
+    const next = await (await api("/api/status")).json();
+    if (state && (webSaving || revision !== webRevision)) next.web_enabled = state.web_enabled;
+    state = next;
   } catch (err) {
     if (err instanceof StaleTab) return;
     if (restarting) {  // the new version starts in a few seconds (with a new page token, so this page then asks to reload)
@@ -136,6 +140,7 @@ async function loadStatus() {
   if (els.dialog.open) renderModels();
   els.libraryBtn.hidden = !state.library && !state.my_files?.ready;
   renderVersion();
+  if (!webSaving) renderWebAccess();
   schedulePoll();
 }
 
@@ -415,6 +420,15 @@ function newChat() {
 }
 
 function sourceButton(source, how, strong) {
+  if (source.web) {
+    const link = document.createElement("a");
+    link.className = "chip" + (strong ? " read" : "");
+    if (/^https?:\/\//i.test(source.url)) link.href = source.url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = `${source.title} · ${source.source} · Web`;
+    return link;
+  }
   const b = document.createElement("button");
   b.type = "button";
   b.className = "chip" + (strong ? " read" : "");
@@ -519,6 +533,8 @@ async function ask(text) {
     reasonStatus(false);
   };
   const reasonStep = (ev) => {  // a lookup between its thoughts; an article it read opens on a click, as above
+    if (ev.type === "web_search") { row("Searched", "r-step").textContent = `the web for “${ev.query}”`; return; }
+    if (ev.type === "web_read") { row("Read online", "r-step").appendChild(sourceButton(ev, "", false)); return; }
     const what = row({ search: "Searched", read: "Read", show: "Opened" }[ev.type], "r-step");
     if (ev.type === "search") { what.textContent = `the library for “${ev.query}”`; return; }
     const b = document.createElement("button");
@@ -545,7 +561,7 @@ async function ask(text) {
     if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || `error ${resp.status}`);
     for await (const ev of events(resp)) {
       if (ev.type !== "thinking") endThought();
-      if (["search", "read", "show", "retry"].includes(ev.type)) {
+      if (["search", "read", "show", "web_search", "web_read", "retry"].includes(ev.type)) {
         if (answer) { answer = ""; render(); }  // text before a lookup, or before it was asked again, is not the answer
         if (ev.type !== "retry") reasonStep(ev);
       }
@@ -555,13 +571,16 @@ async function ask(text) {
         note(said);
         row("Limit", "r-step").textContent = said;
       } else if (ev.type === "retry") {
-        note(ev.why === "search" ? "It answered from memory, so it was asked to search the library, as you asked."
+        note(ev.why === "search" ? "It answered from memory, so it was asked to look up sources, as you asked."
           : "It hadn't written an answer, so it was given the best articles it found and asked again.");
       } else if (ev.type === "memory_check") memoryChecking(msg, true);
       else if (ev.type === "memory") changes.push(showRemembered(remembered, ev));
       else if (ev.type === "memory_failed") memoryNote(remembered, "Couldn't update memory this time.");
       else if (ev.type === "memory_unchanged") memoryNote(remembered, "Memory didn't change. You can edit it yourself:", true);
       else if (ev.type === "search") note(lookupLabel(ev));
+      else if (ev.type === "web_search") note(`Searched the web: “${ev.query}”`);
+      else if (ev.type === "web_read") note(`Read online: ${ev.title} · ${ev.source}`);
+      else if (ev.type === "web_error") note(ev.message);
       else if (ev.type === "read") note(lookupLabel(ev), ev.id, "The answer used this part");
       else if (ev.type === "show") {
         note(lookupLabel(ev), ev.id, "The answer pointed here");
@@ -629,6 +648,12 @@ async function ask(text) {
 
 function showSources(el, ev) {
   el.innerHTML = "";
+  if (ev.web_error) {
+    const note = document.createElement("div");
+    note.className = "memory-note";
+    note.textContent = ev.web_error;
+    el.appendChild(note);
+  }
   const read = ev.sources || [], seen = ev.seen || [];
   if (read.length) {
     el.insertAdjacentHTML("beforeend", `<div class="label">Sources it read · click to open</div>`);
@@ -636,6 +661,8 @@ function showSources(el, ev) {
   } else if (seen.length) {
     el.insertAdjacentHTML("beforeend", `<div class="label">It searched, but didn't open any of these · click to read them</div>`);
     for (const s of seen.slice(0, 5)) el.appendChild(sourceButton(s, "This matched the search", true));
+  } else if (ev.web_error) {
+    // The web failure above already explains why there is no live source to check.
   } else if (state?.library) {
     el.insertAdjacentHTML("beforeend", `<div class="memory-note">This answer came from what the AI already knows, not the library,
       so there's no source to check. Ask “look that up” to get one.</div>`);
@@ -811,6 +838,29 @@ const lengthNote = () => {  // warns when a limit is off: a stuck model then run
 };
 els.length.onchange = () => { remember("length", els.length.value); lengthNote(); };
 els.reasoning.onchange = () => { remember("reasoning", els.reasoning.value); lengthNote(); };
+function renderWebAccess() {
+  $("web-access").value = state.web_enabled ? "auto" : "off";
+  $("web-access").disabled = false;
+  $("web-note").textContent = state.web_enabled
+    ? "Web: Automatic when needed. Search terms and requested URLs leave this computer. The AI runs locally."
+    : "Web: Off. Chat lookups use this computer only. Downloads and update checks have their own controls.";
+}
+$("web-access").onchange = async () => {
+  const enabled = $("web-access").value === "auto";
+  $("web-access").disabled = true;
+  webSaving = true;
+  webRevision++;
+  try {
+    const resp = await api("/api/web", { method: "POST", body: JSON.stringify({ enabled }) });
+    const out = await resp.json();
+    if (!resp.ok) throw new Error(out.error || "Couldn't save web access.");
+    state.web_enabled = out.web_enabled;
+    renderWebAccess();
+  } catch (err) {
+    renderWebAccess();
+    $("web-note").textContent = `Couldn't change web access: ${err.message}. The previous setting is still active.`;
+  } finally { webSaving = false; }
+};
 lengthNote();
 els.searchForm.onsubmit = (e) => { e.preventDefault(); if (els.search.value.trim()) searchLibrary(els.search.value.trim()); };
 els.libraryBtn.onclick = () => { showReader(els.libraryBtn); els.search.focus(); };

@@ -6,14 +6,18 @@ In a chat: /sources lists what the last answer used, /open N opens one, /reasoni
 /think off|short|medium|long|none sets how much it may reason before answering, /limit normal|long|none sets how long
 an answer may run, /bye.
 """
+import argparse
+import datetime
 import os
 import subprocess
 import sys
 import tempfile
+import webbrowser
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core import LENGTH_LIMITS, REASONING_LIMITS, capabilities, chat_events, installed_models, system_prompt, trim  # noqa: E402
 from library.search import DB_PATH, Library  # noqa: E402
+from web_access import WebAccess  # noqa: E402
 
 DIM, BOLD, RESET = "\033[2m", "\033[1m", "\033[0m"
 
@@ -41,12 +45,12 @@ def open_article(library, passage_id):
     print(f"{DIM}  · opened: {doc['title']} ({doc['source']}){RESET}")
 
 
-def run_turn(model, library, messages, level, caps, length="normal"):
+def run_turn(model, library, messages, level, caps, length="normal", web=None):
     """Print one answer as it streams; returns the sources it used and its reasoning (for /reasoning)."""
     sources, reasoning = [], []  # reasoning: what it thought, with its lookups in between
     fresh = True  # nothing printed since the last lookup; skip the blank lines models emit before tool calls
     thinking, thoughts = False, 0  # in a stretch of reasoning; how many stretches
-    for ev in chat_events(model, library, messages, reasoning=level, caps=caps, length=length):
+    for ev in chat_events(model, library, messages, reasoning=level, caps=caps, length=length, web=web):
         kind = ev["type"]
         if kind not in ("token", "tick"):
             fresh = True
@@ -66,6 +70,11 @@ def run_turn(model, library, messages, level, caps, length="normal"):
         elif kind == "read":
             print(f"{DIM}  · reading: {ev['title']} ({ev['source']}){RESET}", flush=True)
             reasoning.append(f"· reading: {ev['title']} ({ev['source']})")
+        elif kind in ("web_search", "web_read", "web_error"):
+            label = (f"searching the web: {ev['query']}" if kind == "web_search" else
+                     f"reading online: {ev['title']} ({ev['url']})" if kind == "web_read" else ev["message"])
+            print(f"{DIM}  · {label}{RESET}", flush=True)
+            reasoning.append(f"· {label}")
         elif kind == "think_limit":
             print(f"{DIM}  · its thinking reached the limit; answering from what it has{RESET}", flush=True)
             reasoning.append("· thinking reached the limit")
@@ -93,10 +102,12 @@ def run_turn(model, library, messages, level, caps, length="normal"):
 
 
 def main():
-    args = sys.argv[1:]
-    model = None
-    if args[:1] == ["--model"]:
-        model, args = args[1], args[2:]
+    parser = argparse.ArgumentParser(description="Local chat with offline sources and automatic web access.")
+    parser.add_argument("--model", help="Ollama model name")
+    parser.add_argument("--offline", action="store_true", help="Prevent all chat web requests")
+    parser.add_argument("question", nargs="*")
+    parsed = parser.parse_args()
+    model, args, web_enabled = parsed.model, parsed.question, not parsed.offline
     if not model:
         names = [m for m in installed_models() or [] if not any(x in m for x in ("embed", "bge-", "nomic", "minilm"))]
         if not names:
@@ -111,12 +122,14 @@ def main():
         except Exception:
             library = None
     caps = capabilities(model)
-    messages = [{"role": "system", "content": system_prompt(library, "tools" in caps)}]
+    def instructions():
+        return system_prompt(library, "tools" in caps, web_enabled) + f"\n\nToday's date: {datetime.date.today()}."
+    messages = [{"role": "system", "content": instructions()}]
     level, length = "off", "normal"  # the Reasoning setting, and the length limit
 
     if args:  # one question, one answer
         messages.append({"role": "user", "content": " ".join(args)})
-        run_turn(model, library, messages, level, caps)
+        run_turn(model, library, messages, level, caps, web=WebAccess() if web_enabled else None)
         return
 
     try:
@@ -125,7 +138,8 @@ def main():
         pass
     docs, n_sources = library.stats() if library else (0, 0)
     lib_note = f"library: {docs:,} articles from {n_sources} sources" if library else "no library found"
-    print(f"{BOLD}{model.removesuffix(':latest')}{RESET} {DIM}· offline · {lib_note}{RESET}")
+    print(f"{BOLD}{model.removesuffix(':latest')}{RESET} {DIM}· web {'automatic' if web_enabled else 'off'} · {lib_note}{RESET}")
+    print(f"{DIM}Automatic web access sends search terms and requested URLs online. /web off keeps chat lookups offline.{RESET}")
     print(f"{DIM}Ask anything. /sources shows what the last answer read, /open N opens one, /reasoning shows how it "
           f"reasoned, /new starts over, /think sets how much it may reason, /limit sets the answer length limit, /bye quits.{RESET}")
     last_sources, last_reasoning = [], ""
@@ -142,6 +156,13 @@ def main():
         if question == "/new":
             messages, last_sources = messages[:1], []
             print(f"{DIM}Started over.{RESET}")
+            continue
+        if question.startswith("/web"):
+            pick = question[4:].strip()
+            if pick in ("auto", "off"):
+                web_enabled = pick == "auto"
+                messages[0]["content"] = instructions()
+            print(f"{DIM}Web: {'automatic' if web_enabled else 'off'}. Use /web auto or /web off.{RESET}")
             continue
         if question.startswith("/think"):
             pick = question[6:].strip()
@@ -169,12 +190,16 @@ def main():
             if not last_sources:
                 print(f"{DIM}The last answer did not read anything from the library.{RESET}")
             for n, s in enumerate(last_sources, 1):
-                print(f"  {n}. {s['title']} ({s['source']})")
+                print(f"  {n}. {s['title']} ({s['source']})" + (f" — {s['url']}" if s.get("web") else ""))
             continue
         if question.startswith("/open"):
             pick = question[5:].strip() or "1"
-            if pick.isdigit() and 1 <= int(pick) <= len(last_sources) and library:
-                open_article(library, last_sources[int(pick) - 1]["id"])
+            if pick.isdigit() and 1 <= int(pick) <= len(last_sources):
+                selected = last_sources[int(pick) - 1]
+                if selected.get("web"):
+                    webbrowser.open(selected["url"])
+                elif library:
+                    open_article(library, selected["id"])
             else:
                 print(f"{DIM}Use /open N, where N is a number from /sources.{RESET}")
             continue
@@ -183,7 +208,8 @@ def main():
         print()
         last_reasoning = ""
         try:
-            used, last_reasoning = run_turn(model, library, messages, level, caps, length)
+            used, last_reasoning = run_turn(model, library, messages, level, caps, length,
+                                           web=WebAccess() if web_enabled else None)
             last_sources = used or last_sources
         except KeyboardInterrupt:
             print(f"\n{DIM}[stopped]{RESET}")

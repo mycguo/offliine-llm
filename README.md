@@ -5,7 +5,7 @@ internet. Ask it how to keep food safe in a blackout, treat a burn or purify wat
 offline library of medical, emergency, how-to and encyclopedia articles, answers from what it finds,
 and shows you the exact passage each answer came from.
 
-- **Offline and private.** The AI model and the library live on your computer. Your questions never leave it, and once set up it works with the internet off.
+- **Local AI, optional web access.** The AI model, library, files and memory live on your computer. Web access defaults to Automatic: the AI can search online and read public pages when needed. Search terms and requested URLs leave your computer; the model still runs locally. Choose Off to prevent chat web requests. Once set up, it works with the internet off.
 - **Shows its sources.** Every answer lists the articles it read; click one to read it yourself, cited passage highlighted, with its license. Ask "where did you get that?" and it opens the source.
 - **Shows its reasoning.** Show reasoning, under each answer, opens what the AI thought before it answered, step by step, with the searches and articles it read in between. It stays hidden until you click it. How much it reasons is up to you: Reasoning, next to Send, is a budget (Off, 1,000, 4,000 or 16,000 tokens, or no limit), and at the limit its thinking stops and it answers from what it has.
 - **Yours to adjust.** The Instructions button shows the instructions the AI gets before you ask anything (the app adds today's date, the names of your files and your Memory notes after them); edit them and Save to change how it answers (Reset brings back the original). The Length limit next to Send sets how long an answer may run, or turns the limit off.
@@ -119,6 +119,8 @@ your question ─► local model (Ollama) ─► search_library ─► SQLite fu
 
 - `app/server.py` serves the chat page on `127.0.0.1` only and runs each turn through `core.py`.
 - `core.py` streams the model's answer and runs its library tools: `search_library`, `read_article`, `show_article`.
+- `web_access.py` adds `search_web` and `read_webpage` for models with tool support. Web access is Automatic by default, with a persistent Off switch in the app. It makes requests only when the AI uses a web tool, with no background connectivity probes. The search query (which may include words from your question) goes to DuckDuckGo's HTML search, and requested URLs go to those websites. The whole chat and file uploads are not sent. No search API key is needed.
+- Failed connections, blocked searches and unreadable pages are shown in the answer's activity and source area. The AI is told to fall back to local information and disclose that it couldn't verify live facts; a new question retries web access, so reconnecting needs no restart. Search providers may require human verification or change their HTML. Pages requiring JavaScript, login, or document downloads cannot be read by the web tool; documents can still be added through Your files. Online source chips open the original page in your browser. Off applies to chat lookups; existing model/library downloads and update checks keep their own controls.
 - `library/search.py` searches `index.sqlite` (FTS5, BM25 ranking over ~1,500-character passages, official sources ranked higher) and reads the plain-text Markdown shards.
 - `memory.py` keeps the AI's notes about the person (`survival-llm-memory.txt`, with the app's settings) and, while the person allows it, `core.py` gives the model one short extra turn after answers to messages about the person or their family, to say what to remember, change or forget (a JSON reply the app checks and applies). The notes, today's date and the names of the person's files are added after the instructions when a chat starts.
 - `library/myfiles.py` reads the person's own files into a small index of their own (kept with the app's settings) and searches it together with the library.
@@ -130,7 +132,12 @@ your question ─► local model (Ollama) ─► search_library ─► SQLite fu
 python3 app/server.py          # the app in its own window (needs `pip install pywebview pypdf truststore`; else it uses your browser)
 python3 app/server.py --browser                     # in your web browser instead
 python3 chat.py "How long is fridge food safe in a blackout?"   # terminal; --model NAME picks a model
+python3 chat.py --offline "How do I store drinking water?"     # prohibit chat web requests
 ```
+
+In terminal chat, `/web auto` and `/web off` change web access for the session; `/sources` lists the pages read and
+`/open N` opens a source. The desktop app saves its web setting with your other settings and applies changes from
+the next question. Switching Off also prevents further web requests in an answer already running.
 
 The library is looked up at `$SURVIVAL_LLM_LIBRARY`, then `~/Survival LLM Library`, then `library.noindex/` next to the code.
 Without a built-in engine, the app uses an Ollama you have installed (`ollama serve`).

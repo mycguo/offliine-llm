@@ -391,6 +391,16 @@ class Memory:
             data["memory_ai_writes"] = bool(on)
             _write_file(self.settings_path, json.dumps(data, indent=1))
 
+    @property
+    def web_enabled(self):
+        return self._settings().get("web_enabled", True) is not False
+
+    def set_web_enabled(self, on):
+        with self.lock:
+            data = self._settings()
+            data["web_enabled"] = bool(on)
+            _write_file(self.settings_path, json.dumps(data, indent=1))
+
     # ---- the person's edits ----
     def save_text(self, text, base=None):
         """Save the person's version of the notes. base is the text they started editing from: notes the AI added
