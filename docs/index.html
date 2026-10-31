@@ -67,10 +67,10 @@
   .sources li { break-inside: avoid; margin: 4px 0; }
   footer { border-top: 1px solid var(--line); margin-top: 56px; padding-top: 18px; color: var(--muted); font-size: 15px; }
   .shot { width: 100%; border-radius: 14px; border: 1px solid var(--line); margin-top: 36px; display: block; }
-  .update h3 { margin: 18px 0 4px; font-size: 18px; }
-  .update h3 .date { font-weight: 400; color: var(--muted); font-size: 15px; margin-left: 8px; }
-  .update ul { margin: 0; padding-left: 22px; }
-  .update li { margin: 4px 0; }
+  .release h3 { margin: 18px 0 4px; font-size: 18px; }
+  .release h3 .date { font-weight: 400; color: var(--muted); font-size: 15px; margin-left: 8px; }
+  .release ul { margin: 0; padding-left: 22px; }
+  .release li { margin: 4px 0; }
 </style>
 </head>
 <body>
@@ -163,15 +163,13 @@
     <div class="card"><h3>Local AI</h3><p>No account needed. The model runs on your computer. With Automatic web access, search terms and requested URLs go online; choose Off to prevent chat web requests.</p></div>
     <div class="card"><h3>Your own files</h3><p>Add PDFs, Word documents, ebooks and notes, like your generator's manual or your family's
       emergency plan, and the AI searches them too. They stay on your computer.</p></div>
-    <div class="card"><h3>Updates</h3><p>Check for updates, at the bottom of the app, installs a new version in one click and keeps your
-      models, library and files.</p></div>
     <div class="card"><h3>Battery</h3><p>On a MacBook Pro we measured about 100 W while it answers, for 5 to 40 seconds per question: a full battery
       answers roughly 100 to 300. A small generator or power station runs it easily.</p></div>
   </div>
 
-  <h2 id="updates">Update notes</h2>
-  <p>Already have it? Click <em>Check for updates</em> at the bottom of the app.</p>
-  <div class="update">
+  <h2 id="releases">Release notes</h2>
+  <p>New builds are installed manually. The app does not check for newer app or library releases.</p>
+  <div class="release">
     <h3>0.3.4 <span class="date">October 27, 2026</span></h3>
     <ul>
       <li><strong>Reasoning setting:</strong> next to Send, choose how much the AI may think before it answers: Off,
@@ -196,7 +194,6 @@
       <li>Some answers no longer open with a made-up "Sources:" line that listed the AI's search commands instead of articles.</li>
       <li>Show reasoning reads more clearly: it says when you stopped it, the time shown is how long it thought, and long
         reasoning scrolls with the page.</li>
-      <li>Windows: cleans up an empty folder that earlier updates could leave behind.</li>
     </ul>
     <h3>0.3.1 <span class="date">October 27, 2026</span></h3>
     <ul>

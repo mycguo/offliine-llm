@@ -26,11 +26,6 @@
 
 <main id="layout" class="layout">
   <section class="chat" aria-label="Chat">
-    <div id="update-banner" class="update-banner" hidden role="status">
-      <span class="update-text"></span>
-      <button id="banner-update" class="primary" type="button">See what's new</button>
-      <button id="banner-dismiss" class="ghost icon" type="button" aria-label="Not now">✕</button>
-    </div>
     <div id="messages" class="messages">
       <div id="setup" class="setup" hidden></div>
       <div id="welcome" class="welcome">
@@ -79,8 +74,7 @@
       </div>
       <p id="web-note" class="web-note" role="status">The AI runs locally. With Automatic web access, search terms and requested URLs leave this computer.</p>
       <p id="length-note" class="length-note" role="note" hidden></p>
-      <p class="footnote">AI can make mistakes. Check the sources.<span id="version-line" hidden> · <span id="version-text"></span>
-        · <button id="updates-btn" class="link" type="button">Check for updates</button></span></p>
+      <p class="footnote">AI can make mistakes. Check the sources.<span id="version-line" hidden> · <span id="version-text"></span></span></p>
     </form>
   </section>
 
@@ -162,13 +156,6 @@
     <button id="memory-clear" class="ghost" type="button">Delete all</button>
     <button id="memory-save" class="primary" type="button">Save</button>
   </div>
-</dialog>
-<dialog id="updates-dialog" class="dialog" aria-labelledby="updates-title">
-  <div class="dialog-head">
-    <h2 id="updates-title">Updates</h2>
-    <button id="close-updates" class="ghost icon" type="button" aria-label="Close">✕</button>
-  </div>
-  <div id="updates-body" aria-live="polite"></div>
 </dialog>
 <div id="drop-overlay" class="drop-overlay" hidden>Drop to add to Your files</div>
 <div id="announce" class="sr-only" aria-live="polite"></div>

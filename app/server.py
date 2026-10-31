@@ -5,7 +5,6 @@ Runs models with Ollama (https://ollama.com): the app's own copy (inside the Mac
 on Windows), or one the person installed. Everything else is the Python standard library.
 """
 import atexit
-import base64
 import bisect
 import ctypes
 import datetime
@@ -20,7 +19,6 @@ import re
 import secrets
 import shutil
 import signal
-import sqlite3
 import subprocess
 import sys
 import threading
@@ -43,8 +41,8 @@ from library.search import DB_PATH, LIB, TOPICS, Library  # noqa: E402
 from web_access import WebAccess  # noqa: E402
 
 # Check web certificates the way the computer itself does, with the Mac's Keychain or the Windows certificate store.
-# The bundled Python only knows a fixed list, so behind a company's or an antivirus's own certificate the library,
-# engine and update downloads failed with CERTIFICATE_VERIFY_FAILED while models (Ollama) downloaded fine.
+# The bundled Python only knows a fixed list, so behind a company's or an antivirus's own certificate the library
+# and engine downloads failed with CERTIFICATE_VERIFY_FAILED while models (Ollama) downloaded fine.
 try:
     import truststore
     truststore.inject_into_ssl()
@@ -95,12 +93,11 @@ ALIASES = {"granite4.2": "granite-8b"}  # granite4.2:latest is the same 8B model
 NOT_CHAT = ("embed", "bge-", "nomic", "minilm")
 DISK_MARGIN_GB = 5  # keep this much free after a download
 
-# The library packs on offer are listed in a small JSON file published with each library release
-# (packaging/make_packs.py writes it): {"packs": [{"id", "label", "gb", "parts": [{"url", "bytes", "sha256"}]}]}.
-# Packs are zips of index.sqlite + text/, split into parts because GitHub caps release files at 2 GB.
-# It lives on the project's web page (not "latest release"), so app releases and library releases stay independent.
-MANIFEST_URL = os.environ.get("SURVIVAL_LLM_MANIFEST") or \
-    "https://anonnerdfrenzy.github.io/survival-llm/library-packs.json"
+# Initial library downloads use the catalog bundled with this copy; startup never requests release metadata.
+# Pack URLs and checksums stay fixed until the person installs another copy of the app.
+PACKS_FILE = os.path.join(ROOT, "library-packs.json")
+if not os.path.isfile(PACKS_FILE):  # running from source
+    PACKS_FILE = os.path.join(ROOT, "docs", "library-packs.json")
 
 if os.environ.get("SURVIVAL_LLM_APP_DIR"):  # another settings folder, such as the dev copy's (bin/dev)
     APP_DIR = os.environ["SURVIVAL_LLM_APP_DIR"]
@@ -128,15 +125,6 @@ def save_failed(exc, path):
     return f"Couldn't save {path}: {getattr(exc, 'strerror', None) or exc}."
 MAX_UPLOAD = 4 * 1024 ** 3
 my_files_checked = [0.0]  # when the folder was last looked at
-
-# Updates. Each release publishes update.json on the project's web page (packaging/make_update.py writes it):
-# {"version", "date", "notes": [...], "mac": {"url", "bytes", "sha256"}, "windows": {...}}. The app checks it once a
-# day while running (a plain request for a small file, nothing about the person) and when they press Check.
-UPDATES_URL = os.environ.get("SURVIVAL_LLM_UPDATES") or "https://anonnerdfrenzy.github.io/survival-llm/update.json"
-DOWNLOAD_PAGE = "https://www.brangus.io/survival-llm"
-FIRST_PACKS = "2026-10-24"  # the library packs' version from before packs said which version they are
-UPDATE_FAILED = os.path.join(APP_DIR, "update-failed.txt")  # left by the Windows updater when it had to roll back
-updates = {"data": None, "checked": 0.0, "error": None}
 
 # The app's own Ollama. The Mac app carries it (Resources/ollama, next to the app code). On Windows it is 1.6 GB
 # with its graphics-card libraries, so it is downloaded on first use instead; build.sh writes engine.json with its
@@ -166,7 +154,7 @@ VERSION = _read_version()
 
 def _dev_label(value):
     """A copy for trying changes before they ship (bin/dev) gets SURVIVAL_LLM_DEV: what it runs, or "1" to read
-    that from git ("reasoning-view @ 13806f4, with uncommitted changes"). It says so on screen and never updates."""
+    that from git ("reasoning-view @ 13806f4, with uncommitted changes"). It says so on screen."""
     if value != "1":
         return value or None
     def git(*args):
@@ -191,7 +179,7 @@ open_libs = weakref.WeakSet()  # every open library, so a swap can close them (W
 downloads = {}      # key -> {key, label, status, completed, total, error}; runs in background threads
 dl_lock = threading.Lock()
 warming = {}        # model -> "loading" | "error"
-manifest = {"packs": None, "failed_at": 0.0, "error": None}
+pack_catalog = {"packs": None, "error": None}
 ollama_started_at = [0.0]
 quit_hooks = []     # run when someone presses Quit (closes the app window)
 quit_event = threading.Event()
@@ -388,19 +376,27 @@ def model_caps(model):
     return caps_cache[model]
 
 
+def valid_packs(packs):
+    return isinstance(packs, list) and all(
+        isinstance(p, dict) and isinstance(p.get("id"), str) and isinstance(p.get("label"), str)
+        and isinstance(p.get("gb"), (int, float)) and isinstance(p.get("install_bytes", 0), int)
+        and isinstance(p.get("parts"), list) and all(isinstance(x, dict) and isinstance(x.get("bytes"), int)
+                                                     and isinstance(x.get("url"), str) for x in p["parts"])
+        for p in packs)
+
+
 def library_packs():
-    """Packs from the published manifest; empty when offline or unpublished (checked again after a minute)."""
-    if manifest["packs"] is None and time.time() - manifest["failed_at"] > 60:
+    """Initial download choices from a local catalog. This never contacts a release server."""
+    if pack_catalog["packs"] is None:
         try:
-            packs = fetch_json(MANIFEST_URL).get("packs", [])
+            with open(PACKS_FILE, encoding="utf-8") as f:
+                packs = json.load(f).get("packs", [])
             if not valid_packs(packs):
                 raise ValueError("library-packs.json")
-            manifest.update(packs=packs, error=None)
-        except (urllib.error.HTTPError, ValueError, AttributeError):  # the site answered, but without a usable list
-            manifest.update(failed_at=time.time(), error="unavailable")
-        except OSError:
-            manifest.update(failed_at=time.time(), error="offline")
-    return manifest["packs"] or []
+            pack_catalog.update(packs=packs, error=None)
+        except (OSError, ValueError, AttributeError):
+            pack_catalog.update(packs=[], error="unavailable")
+    return pack_catalog["packs"]
 
 
 # ---------- Ollama: find it, start it, explain its errors ----------
@@ -658,13 +654,13 @@ def library_worker(key, pack_id):
     """Download a pack's parts (resumable, checksummed), then unzip straight from them into the library folder."""
     pack = next((p for p in library_packs() if p["id"] == pack_id), None)
     if not pack:
-        raise RuntimeError("That library pack isn't available. Check the internet connection.")
+        raise RuntimeError("That library pack isn't included in this copy's download catalog.")
     work, partial = LIB + ".download", LIB + ".partial"
     shutil.rmtree(partial, ignore_errors=True)  # left by an install that stopped while unpacking
     os.makedirs(work, exist_ok=True)
     paths = [os.path.join(work, f"{pack_id}.{n:03d}") for n in range(len(pack["parts"]))]
     total = sum(part["bytes"] for part in pack["parts"])
-    # the most on disk at once: the unpacked library plus the parts not unpacked yet (the manifest has the exact
+    # the most on disk at once: the unpacked library plus the parts not unpacked yet (the catalog has the exact
     # figure; unpacked is about 2.4 times the zip); parts downloaded by an earlier try are already on the disk
     peak = pack.get("install_bytes") or total * 3.5
     have = sum(os.path.getsize(p) for p in paths if os.path.exists(p))
@@ -691,8 +687,6 @@ def library_worker(key, pack_id):
         raise
     finally:
         parts.close()
-    with open(os.path.join(partial, "pack.json"), "w") as f:  # which pack this is, for update checks
-        json.dump({"id": pack_id, "version": pack.get("version", FIRST_PACKS)}, f)
     old = LIB + ".old"
     shutil.rmtree(old, ignore_errors=True)
     with lib_lock:  # close every open copy first: Windows won't rename a folder with open files in it
@@ -738,307 +732,6 @@ def warm_model(model):
 
 
 # ---------- HTTP ----------
-
-# ---------- updates: the library pack, and the app itself (it replaces itself, then restarts) ----------
-
-def version_tuple(version):
-    return tuple(int(n) for n in re.findall(r"\d+", version or "0"))
-
-
-def valid_update(data):
-    """Whether update.json has the shape the app relies on (a broken file must not break running copies)."""
-    if not isinstance(data, dict) or not isinstance(data.get("version"), str) \
-            or not re.fullmatch(r"\d+(\.\d+){0,3}", data["version"]):
-        return False
-    for key in ("mac", "windows"):
-        pkg = data.get(key)
-        if pkg is not None and not (isinstance(pkg, dict) and isinstance(pkg.get("bytes"), int)
-                                    and re.fullmatch(r"(https://|http://127\.0\.0\.1:)\S+", str(pkg.get("url", "")))
-                                    and re.fullmatch(r"[0-9a-f]{64}", str(pkg.get("sha256", "")))):
-            return False
-    notes = data.get("notes", [])
-    return isinstance(notes, list) and all(isinstance(n, str) for n in notes) and isinstance(data.get("date", ""), str)
-
-
-def valid_packs(packs):
-    return isinstance(packs, list) and all(
-        isinstance(p, dict) and isinstance(p.get("id"), str) and isinstance(p.get("label"), str)
-        and isinstance(p.get("gb"), (int, float)) and isinstance(p.get("version", ""), str)
-        and isinstance(p.get("install_bytes", 0), int)
-        and isinstance(p.get("parts"), list) and all(isinstance(x, dict) and isinstance(x.get("bytes"), int)
-                                                     and isinstance(x.get("url"), str) for x in p["parts"])
-        for p in packs)
-
-
-def fetch_json(url):
-    with urllib.request.urlopen(url, timeout=8) as resp:
-        return json.load(resp)
-
-
-def check_updates(force=False):
-    """Fetch what's published: the latest app version and the library packs (at most every 6 hours unless forced)."""
-    if not force and time.time() - updates["checked"] < 6 * 3600:
-        return
-    try:
-        data = fetch_json(UPDATES_URL)
-        if not valid_update(data):
-            raise ValueError("update.json")
-        updates.update(data=data, error=None)
-        packs = fetch_json(MANIFEST_URL)
-        if isinstance(packs, dict) and valid_packs(packs.get("packs")):
-            manifest.update(packs=packs["packs"], error=None)
-    except urllib.error.HTTPError:  # the site answered, but without the file
-        updates["error"] = "unavailable"
-    except OSError:
-        updates["error"] = "offline"
-    except Exception:  # a file that isn't what the app expects
-        updates["error"] = "unavailable"
-    updates["checked"] = time.time()
-
-
-def auto_check_updates():
-    delay = 20  # a little after starting, then once a day
-    while not quit_event.wait(delay):
-        try:
-            check_updates(force=True)
-        except Exception:
-            pass
-        delay = 24 * 3600
-
-
-def installed_pack():
-    """The library pack that is installed ({"id", "version"}), or None: no library, or one built by hand."""
-    try:
-        with open(os.path.join(LIB, "pack.json")) as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        pass
-    if not os.path.exists(DB_PATH) or os.path.islink(LIB):
-        return None
-    try:
-        db = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
-        keys = {k for (k,) in db.execute("SELECT key FROM sources")}
-        db.close()
-    except sqlite3.Error:
-        return None
-    if keys & {"post-disaster", "water", "food-prep", "medical-library", "knots"}:  # sources no pack has
-        return None
-    return {"id": "full" if "wikipedia" in keys else "lite", "version": FIRST_PACKS}  # from before pack.json
-
-
-def platform_key():
-    return "mac" if sys.platform == "darwin" else "windows" if os.name == "nt" else None
-
-
-def newer_app():
-    """The published version if it is newer than this one and has a download for this computer, else None."""
-    data = updates["data"] or {}
-    if data.get(platform_key()) and version_tuple(data.get("version")) > version_tuple(VERSION):
-        return data
-    return None
-
-
-def newer_library():
-    pack = installed_pack()
-    offer = next((p for p in manifest["packs"] or [] if pack and p["id"] == pack.get("id")), None)
-    if offer and offer.get("version", FIRST_PACKS) > str(pack.get("version", FIRST_PACKS)):  # ISO dates sort as text
-        return {k: offer.get(k) for k in ("id", "label", "gb", "version")}
-    return None
-
-
-def original_path(path):
-    """macOS runs a downloaded app that was never moved from a temporary, read-only copy (App Translocation).
-    The path of the real one, from the system's Security framework; None if it can't say."""
-    if "/AppTranslocation/" not in path:
-        return path
-    try:
-        cf = ctypes.cdll.LoadLibrary("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")
-        sec = ctypes.cdll.LoadLibrary("/System/Library/Frameworks/Security.framework/Security")
-        cf.CFURLCreateFromFileSystemRepresentation.restype = ctypes.c_void_p
-        cf.CFURLCreateFromFileSystemRepresentation.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_long,
-                                                               ctypes.c_bool]
-        cf.CFURLGetFileSystemRepresentation.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_char_p, ctypes.c_long]
-        cf.CFRelease.argtypes = [ctypes.c_void_p]
-        sec.SecTranslocateCreateOriginalPathForURL.restype = ctypes.c_void_p
-        sec.SecTranslocateCreateOriginalPathForURL.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
-        raw = path.encode()
-        url = cf.CFURLCreateFromFileSystemRepresentation(None, raw, len(raw), True)
-        real = sec.SecTranslocateCreateOriginalPathForURL(url, None)
-        cf.CFRelease(url)
-        if not real:
-            return None
-        buf = ctypes.create_string_buffer(4096)
-        ok = cf.CFURLGetFileSystemRepresentation(real, True, buf, len(buf))
-        cf.CFRelease(real)
-        return buf.value.decode() if ok else None
-    except Exception:
-        return None
-
-
-def install_location():
-    """Where this copy of the app lives when it came from a download: the Mac app, or the Windows folder."""
-    if sys.platform == "darwin" and ROOT.endswith(os.path.join("Contents", "Resources", "app")):
-        return original_path(os.path.dirname(os.path.dirname(os.path.dirname(ROOT))))
-    if os.name == "nt" and os.path.isfile(os.path.join(os.path.dirname(ROOT), "Survival LLM.bat")):
-        return os.path.dirname(ROOT)
-    return None
-
-
-def writable(folder):
-    if os.name != "nt":
-        return os.access(folder, os.W_OK)
-    try:  # Windows folder permissions only show when you try
-        probe = os.path.join(folder, f".survival-llm-{uuid.uuid4().hex[:8]}")
-        open(probe, "w").close()
-        os.remove(probe)
-        return True
-    except OSError:
-        return False
-
-
-def update_blocker():
-    """Why this copy can't update itself, as a sentence for the person; None if it can."""
-    if DEV:
-        return "This is a dev copy of Survival LLM (started with bin/dev), so it doesn't update itself."
-    where = install_location()
-    if where is None:
-        if "/AppTranslocation/" in ROOT:
-            return ("macOS is running Survival LLM from a temporary copy. Move it to your Applications folder (drag it "
-                    "there in Finder), open it from there, and check again.")
-        return "This copy of Survival LLM runs from its source code, so it can't update itself. Update it with git pull."
-    if not writable(os.path.dirname(where)):
-        return "Survival LLM can't replace itself in the folder it's in. Download the new version from the website."
-    return None
-
-
-def update_report():
-    """Everything the Updates window shows."""
-    app, lib = newer_app(), newer_library()
-    report = {"version": VERSION, "checked": updates["checked"] or None, "error": updates["error"],
-              "download_page": DOWNLOAD_PAGE, "app": None, "library": lib}
-    if app:
-        report["app"] = {"version": app["version"], "date": app.get("date"), "notes": app.get("notes", []),
-                         "gb": round(app[platform_key()]["bytes"] / 1e9, 3), "blocker": update_blocker()}
-    try:
-        with open(UPDATE_FAILED, encoding="utf-8-sig") as f:
-            report["failed"] = f.read().strip() or "no reason given"
-        os.remove(UPDATE_FAILED)  # shown once
-    except OSError:
-        pass
-    return report
-
-
-def app_update_worker(key):
-    """Download the new version, check it, put it in place of this copy, then restart into it."""
-    app, blocker = newer_app(), update_blocker()
-    if blocker or not app:
-        raise RuntimeError(blocker or "There's no newer version to install.")
-    pkg = app[platform_key()]
-    need = pkg["bytes"] * 3 / 1e9 + 1
-    if need > disk_free_gb():
-        raise RuntimeError(f"Not enough free disk space for the update: it needs about {need:.0f} GB free, "
-                           f"and this computer has {disk_free_gb()} GB.")
-    work = os.path.join(APP_DIR, "update")
-    os.makedirs(work, exist_ok=True)
-    zip_path = os.path.join(work, f"Survival-LLM-{re.sub(r'[^0-9.]', '', app['version'])}-{platform_key()}.zip")
-    for name in os.listdir(work):  # a download of an older version
-        if os.path.join(work, name) != zip_path:
-            os.remove(os.path.join(work, name))
-    _download(key, pkg["url"], zip_path, pkg["bytes"])
-    if os.path.getsize(zip_path) != pkg["bytes"] or _sha256(zip_path) != pkg["sha256"]:
-        os.remove(zip_path)
-        raise RuntimeError("The update was damaged in transit. Try again.")
-    _update(key, status="unpacking", completed=pkg["bytes"], total=pkg["bytes"])
-    where = install_location()
-    helper = install_mac(zip_path, where) if sys.platform == "darwin" else install_windows(zip_path, where)
-    os.remove(zip_path)
-    try:
-        os.rmdir(work)
-    except OSError:
-        pass
-    threading.Timer(1.5, restart_into, args=(helper,)).start()  # time for the window to say "Restarting"
-
-
-def install_mac(zip_path, bundle):
-    """Unpack the new app beside this one, check its signature, and swap them (the old one goes to the Trash).
-    A running app's files can be replaced on macOS; the new one starts once this one has quit."""
-    if sys.platform == "darwin":
-        from Foundation import NSURL, NSFileManager  # noqa: F401  load before the swap: to_trash needs it after
-    parent = os.path.dirname(bundle)
-    staging = os.path.join(parent, f".Survival LLM update {uuid.uuid4().hex[:8]}")
-    try:
-        subprocess.run(["ditto", "-x", "-k", zip_path, staging], check=True, capture_output=True, timeout=900)
-        new = os.path.join(staging, "Survival LLM.app")
-        if subprocess.run(["codesign", "--verify", "--deep", new], capture_output=True, timeout=600).returncode:
-            raise RuntimeError("The update didn't pass macOS's signature check, so it wasn't installed.")
-        old = os.path.join(staging, "Survival LLM (old version).app")
-        os.rename(bundle, old)
-        try:
-            os.rename(new, bundle)
-        except OSError:
-            os.rename(old, bundle)
-            raise
-        try:
-            to_trash(old)  # can be put back from the Trash
-        except Exception:
-            shutil.rmtree(old, ignore_errors=True)
-    finally:
-        shutil.rmtree(staging, ignore_errors=True)
-    wait = ('n=0; while kill -0 "$1" 2>/dev/null; do n=$((n+1)); [ $n -gt 300 ] && kill -9 "$1"; sleep 0.2; done; '
-            'sleep 0.5; open "$2"')  # a minute at most, then it stops the old copy
-    return {"cmd": ["/bin/sh", "-c", wait, "survival-llm-update", str(os.getpid()), bundle]}
-
-
-WINDOWS_SWAP = """# Run by a copy of Survival LLM that is updating itself on Windows: wait for it to quit, swap in the new folder
-# (retrying for a minute, since something may still be using a file in it), put the old one back if that fails
-# and leave a note saying why, and in every case start whichever version is in place.
-$ErrorActionPreference = 'Stop'
-Set-Location -LiteralPath $env:TEMP
-Wait-Process -Id ([int]$env:SLLM_PID) -Timeout 120 -ErrorAction SilentlyContinue
-$dir = $env:SLLM_DIR
-try {
-  if (Test-Path -LiteralPath $env:SLLM_OLD) { Remove-Item -LiteralPath $env:SLLM_OLD -Recurse -Force }
-  $moved = $false
-  for ($i = 0; $i -lt 30 -and -not $moved; $i++) {
-    try { Move-Item -LiteralPath $dir -Destination $env:SLLM_OLD; $moved = $true } catch { Start-Sleep -Seconds 2 }
-  }
-  if (-not $moved) { throw "Something is still using a file in the Survival LLM folder." }
-  try { Move-Item -LiteralPath $env:SLLM_NEW -Destination $dir }
-  catch { Move-Item -LiteralPath $env:SLLM_OLD -Destination $dir; throw }
-  Remove-Item -LiteralPath $env:SLLM_OLD -Recurse -Force -ErrorAction SilentlyContinue
-  Remove-Item -LiteralPath $env:SLLM_STAGING -Recurse -Force -ErrorAction SilentlyContinue
-} catch {
-  try { Set-Content -LiteralPath $env:SLLM_FAILED -Value $_.Exception.Message -Encoding UTF8 } catch {}
-} finally {
-  Start-Process -FilePath (Join-Path $dir 'python\\pythonw.exe') -WorkingDirectory $env:USERPROFILE `
-    -ArgumentList ('"' + (Join-Path $dir 'app\\app\\server.py') + '"')
-}"""
-
-
-def install_windows(zip_path, folder):
-    """Unpack the new version beside this one. Windows won't replace a running program's files, so a helper swaps
-    the folders once this copy has quit, puts the old one back if that fails, and starts the app again."""
-    staging = folder + ".update"
-    shutil.rmtree(staging, ignore_errors=True)
-    with zipfile.ZipFile(zip_path) as z:
-        z.extractall(staging)
-    new = os.path.join(staging, "Survival LLM")
-    if not os.path.isfile(os.path.join(new, "python", "pythonw.exe")):
-        shutil.rmtree(staging, ignore_errors=True)
-        raise RuntimeError("The update didn't contain the app, so it wasn't installed.")
-    script = base64.b64encode(WINDOWS_SWAP.encode("utf-16-le")).decode()
-    return {"cmd": ["powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-EncodedCommand", script],
-            "env": {**os.environ, "SLLM_PID": str(os.getpid()), "SLLM_DIR": folder, "SLLM_NEW": new,
-                    "SLLM_OLD": folder + ".old", "SLLM_STAGING": staging, "SLLM_FAILED": UPDATE_FAILED}}
-
-
-def restart_into(helper):
-    """Start the helper that opens the new version once this copy has quit, then quit."""
-    flags = {"creationflags": 0x08000000 | 0x00000200} if os.name == "nt" else {"start_new_session": True}
-    subprocess.Popen(helper["cmd"], env=helper.get("env"), cwd=os.path.expanduser("~"), stdin=subprocess.DEVNULL,
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **flags)
-    quit_app()
-
 
 def quit_app():
     """Stop serving and close the window; the app then exits, stopping the AI engine it started."""
@@ -1124,9 +817,6 @@ class Handler(BaseHTTPRequestHandler):
             if query.get("check"):
                 check_my_files()
             return self._send(200, {"folder": MY_DIR, "items": myfiles.items(MY_DB), **myfiles.progress})
-        if url.path == "/api/updates":  # ?check=1: look now instead of using the last check
-            check_updates(force=bool(query.get("check")))
-            return self._send(200, update_report())
         if url.path == "/api/search":
             if not library():
                 return self._send(200, {"results": []})
@@ -1160,11 +850,10 @@ class Handler(BaseHTTPRequestHandler):
             "catalog": catalog, "downloads": jobs,
             "library": {"articles": docs, "sources": sources} if docs else None,
             "packs": [] if docs else [{k: p[k] for k in ("id", "label", "gb")} for p in library_packs()],
-            "packs_error": None if docs else manifest["error"],
+            "packs_error": None if docs else pack_catalog["error"],
             "library_dir": LIB, "disk_free_gb": disk_free_gb(),
             "my_files": {"ready": mine, "busy": myfiles.progress["busy"]},
             "version": VERSION, "dev": DEV, "web_enabled": MEMORY.web_enabled,
-            "update": {"app": (newer_app() or {}).get("version"), "library": bool(newer_library())},
             "machine": {"os": "macOS" if sys.platform == "darwin" else platform.system(), "ram_gb": ram_gb()},
             "topics": TOPICS}
 
@@ -1266,15 +955,6 @@ class Handler(BaseHTTPRequestHandler):
             ollama_started_at[0] = 0
             start_ollama()
             return self._send(200, {"ok": True})
-        if url.path == "/api/update/app":
-            app = newer_app()
-            with dl_lock:
-                busy = [j["label"] for j in downloads.values()
-                        if j["status"] in ("starting", "downloading", "unpacking") and j["key"] != "app-update"]
-            if busy:  # updating restarts the app, which would cut it short
-                return self._send(409, {"error": f"Wait until {busy[0]} has finished, then update."})
-            started = bool(app) and start_job("app-update", f"Survival LLM {app['version']}", app_update_worker)
-            return self._send(200 if started else 409, {"ok": started})
         if url.path == "/api/quit":
             self._send(200, {"ok": True})
             quit_app()
@@ -1476,14 +1156,9 @@ if __name__ == "__main__":
     os.makedirs(APP_DIR, exist_ok=True)
     with open(STATE, "w") as f:
         json.dump({"port": PORT, "pid": os.getpid()}, f)
-    try:  # an update's download folder, left behind when Windows doesn't let go of it in time (0.3.1 Windows test)
-        os.rmdir(os.path.join(APP_DIR, "update"))
-    except OSError:
-        pass  # not there, or holding a download
     print(f"{datetime.datetime.now():%Y-%m-%d %H:%M} Survival LLM {VERSION}{f' (dev: {DEV})' if DEV else ''} is running at "
           f"{url}", flush=True)  # the date tells one run's lines in app.log from the next
     check_my_files()  # files put in the folder while the app was closed
-    threading.Thread(target=auto_check_updates, daemon=True).start()
     try:
         if headless or use_browser:
             if use_browser:

@@ -5,8 +5,7 @@ Usage: python3 packaging/download_stats.py [--json]
 Each run appends a snapshot to ~/.local/share/survival-llm/download-stats.jsonl
 and prints the change since the previous one. Needs the `gh` CLI, logged in.
 
-App counts include self-updates: an installed copy that updates downloads the
-new zip, so a release's count is new people plus existing users updating.
+Asset counts include repeated downloads and do not represent unique people.
 """
 import json
 import os
@@ -83,7 +82,7 @@ def main():
     if s["everything_first"]:
         print(f"Everything finish rate    {s['everything_last'] / s['everything_first']:>7.0%}")
     print("By version: " + ", ".join(f"{t} {n:,}" for t, n in s["by_version"].items()))
-    print("App counts include self-updates, so they run ahead of the number of people.")
+    print("Asset download counts include repeated downloads, not unique people.")
 
 
 if __name__ == "__main__":

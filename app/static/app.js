@@ -15,7 +15,6 @@ let busy = null;           // AbortController while an answer streams
 let pollTimer = null;
 let readerRequest = 0;     // ignore stale article loads
 let lastFocus = null;      // where focus returns when the reader closes
-let restarting = false;    // an update is installing; the app will restart
 let webSaving = false, webRevision = 0;
 const narrow = () => window.matchMedia("(max-width: 820px)").matches;
 
@@ -119,11 +118,6 @@ async function loadStatus() {
     state = next;
   } catch (err) {
     if (err instanceof StaleTab) return;
-    if (restarting) {  // the new version starts in a few seconds (with a new page token, so this page then asks to reload)
-      setStatus("warn", "Restarting into the new version…");
-      pollTimer = setTimeout(loadStatus, 2000);
-      return;
-    }
     setStatus("off", "Survival LLM has stopped. Open the app again.");
     return;
   }
@@ -139,7 +133,7 @@ async function loadStatus() {
   renderSetup();
   if (els.dialog.open) renderModels();
   els.libraryBtn.hidden = !state.library && !state.my_files?.ready;
-  renderVersion();
+  renderBuildInfo();
   if (!webSaving) renderWebAccess();
   schedulePoll();
 }
@@ -364,11 +358,8 @@ function renderSetup() {
           to check. Pick one:</p>${failed ? `<p class="error">${esc(failed.error)}</p>` : ""}
           <div class="pack-row">${s.packs.map((p) => `<button class="ghost pack" type="button" data-pack="${esc(p.id)}">${esc(p.label)}</button>`).join("")}</div>`;
       } else {
-        libStep = s.packs_error === "unavailable"
-          ? `<p>The list of library downloads isn't available right now (the download site answered, but without it). Try again
-            later; it checks again every minute.</p>`
-          : `<p>Couldn't reach the list of library downloads (no internet?). Connect, and it will appear here; or put a library
-            folder at ${esc(s.library_dir)}.</p>`;
+        libStep = `<p>This copy has no usable library download catalog. You can put an existing library folder at
+          ${esc(s.library_dir)}.</p>`;
       }
     }
     steps.push(`<div class="step ${s.library ? "done" : ""}"><h3><span class="num">${s.library ? "✓" : "3"}</span>Offline library</h3>${libStep}</div>`);
@@ -843,7 +834,7 @@ function renderWebAccess() {
   $("web-access").disabled = false;
   $("web-note").textContent = state.web_enabled
     ? "Web: Automatic when needed. Search terms and requested URLs leave this computer. The AI runs locally."
-    : "Web: Off. Chat lookups use this computer only. Downloads and update checks have their own controls.";
+    : "Web: Off. Chat lookups use this computer only. Model and library downloads start when you choose them.";
 }
 $("web-access").onchange = async () => {
   const enabled = $("web-access").value === "auto";
@@ -1005,98 +996,13 @@ document.addEventListener("drop", (e) => {
     ({ error: true, text: `${name} is a folder. To add a whole folder, click Open the folder and put it there.` })));
 });
 
-// ---------- updates ----------
-const updatesDialog = $("updates-dialog");
-let updateReport = null, updateChecking = false, updatesSig = "";
-const day = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { dateStyle: "medium" });
-const size = (gb) => (Number(gb) < 1 ? `${Math.round(Number(gb) * 1000)} MB` : `${Number(gb)} GB`);
-let updateError = "";
-
-function renderVersion() {
+// ---------- local build information ----------
+function renderBuildInfo() {
   $("version-line").hidden = !state.version;
   $("version-text").textContent = `Survival LLM ${state.version}` + (state.dev ? ` · dev copy: ${state.dev}` : "");
-  $("dev-badge").hidden = !state.dev;  // a copy for trying changes before they ship (bin/dev)
+  $("dev-badge").hidden = !state.dev;
   $("dev-badge").title = state.dev ? `Dev copy: ${state.dev}` : "";
-  const app = state.update?.app;
-  $("updates-btn").textContent = app || state.update?.library ? "Update available" : "Check for updates";
-  $("update-banner").hidden = !app || recall("update-dismissed") === app;
-  if (app) $("update-banner").querySelector(".update-text").textContent = `Survival LLM ${app} is available.`;
-  if (updatesDialog.open) renderUpdates();
 }
-
-async function openUpdates(check) {
-  updatesSig = "";
-  if (!updatesDialog.open) updatesDialog.showModal();
-  updateChecking = true;
-  renderUpdates();
-  try { updateReport = await (await api(`/api/updates${check ? "?check=1" : ""}`)).json(); } catch { /* shown below */ }
-  updateChecking = false;
-  renderUpdates();
-  loadStatus();
-}
-
-function renderUpdates() {
-  const r = updateReport;
-  const busy = (job) => job && ["starting", "downloading", "unpacking"].includes(job.status);
-  let html;
-  if (updateChecking) html = `<p class="meta">Checking for updates…</p>`;
-  else if (!r) html = `<p class="error">Couldn't check for updates. Is Survival LLM still running?</p>`;
-  else {
-    html = r.failed ? `<p class="error">The last update couldn't be installed (${esc(r.failed)}). You still have version ${esc(r.version)}.</p>` : "";
-    const job = jobFor("app-update");
-    if (r.app) {
-      const a = r.app;
-      html += `<h3>Survival LLM ${esc(a.version)} is available</h3>
-        <p class="meta">You have ${esc(r.version)}.${a.date ? ` Released ${esc(day(a.date))}.` : ""} ${size(a.gb)} download.</p>`;
-      if (Array.isArray(a.notes) && a.notes.length) html += `<ul class="notes">${a.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`;
-      if (busy(job)) html += progressHTML(job, `Downloading Survival LLM ${esc(a.version)}`, "Update download");
-      else if (job?.status === "done") html += `<p>Installed. Survival LLM is restarting into the new version…</p>`;
-      else if (a.blocker) html += `<p>${esc(a.blocker)}</p>
-        <p><a href="${esc(r.download_page)}" target="_blank" rel="noopener">Get the new version from the website</a></p>`;
-      else html += `${job?.status === "error" || updateError ? `<p class="error">${esc(updateError || job.error)}</p>` : ""}
-        <button class="primary" type="button" id="install-update">Update now</button>
-        <p class="meta">Survival LLM downloads the new version, closes, and opens again a few seconds later. Your AI models,
-          library, files and settings stay as they are.</p>`;
-    } else if (r.error) {
-      html += `<p>${r.error === "offline" ? "Couldn't check for updates (no internet?)." : "Couldn't check for updates right now."}
-        Survival LLM works fine without them. You have version ${esc(r.version)}.</p>`;
-    } else {
-      html += `<p>You have the latest version of Survival LLM (${esc(r.version)}).</p>`;
-    }
-    if (r.library) {
-      const lib = jobFor(`library:${r.library.id}`);
-      html += `<h3>A newer library is available</h3><p class="meta">${esc(r.library.label)}, from ${esc(day(r.library.version))}.</p>`;
-      if (busy(lib)) html += progressHTML(lib, "Downloading the new library", "Library update");
-      else if (lib?.status === "done") html += `<p>Your library is up to date.</p>`;
-      else html += `${lib?.status === "error" ? `<p class="error">${esc(lib.error)}</p>` : ""}
-        <button class="ghost" type="button" id="update-library">Update the library (${esc(size(r.library.gb))})</button>
-        <p class="meta">Your current library keeps working until the new one is ready, and your own files stay.</p>`;
-    }
-    if (r.checked) html += `<p class="meta">Last checked ${esc(new Date(r.checked * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }))}.</p>`;
-  }
-  if (html === updatesSig) return;  // rebuilding an unchanged window would knock keyboard focus off its buttons
-  updatesSig = html;
-  $("updates-body").innerHTML = html;
-  if ($("install-update")) $("install-update").onclick = installUpdate;
-  if ($("update-library")) $("update-library").onclick = () => startLibraryDownload(r.library.id);
-}
-
-async function installUpdate() {
-  updateError = "";
-  try {
-    const resp = await api("/api/update/app", { method: "POST", body: "{}" });
-    if (resp.ok) restarting = true;
-    else updateError = (await resp.json()).error || "The update couldn't start. Try again.";
-  } catch { return; }
-  renderUpdates();
-  loadStatus();
-}
-
-$("updates-btn").onclick = () => openUpdates(true);
-$("close-updates").onclick = () => updatesDialog.close();
-updatesDialog.onclick = (e) => { if (e.target === updatesDialog) updatesDialog.close(); };
-$("banner-update").onclick = () => openUpdates(false);
-$("banner-dismiss").onclick = () => { remember("update-dismissed", state?.update?.app || ""); $("update-banner").hidden = true; };
 
 // ---------- memory: the AI's notes about the person, viewable and editable ----------
 const memoryDialog = $("memory-dialog");
