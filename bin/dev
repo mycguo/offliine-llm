@@ -15,8 +15,8 @@
   bin/dev log         follow its log
 
 Survival LLM Dev keeps its own settings, memory and files (in ~/Library/Application Support/Survival LLM Dev), so an
-installed Survival LLM is left alone; it shares the library and the AI models. It never updates itself, and a Dev
-badge and the line at the bottom of its window say which branch and commit it runs. It is in ~/Applications, so
+installed Survival LLM is left alone; it shares the library and the AI models. A Dev badge and the line at the
+bottom of its window say which branch and commit it runs. It is in ~/Applications, so
 Spotlight opens it too, running the code as it is at that moment.
 """
 import json

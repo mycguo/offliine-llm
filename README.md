@@ -11,7 +11,7 @@ and shows you the exact passage each answer came from.
 - **Yours to adjust.** The Instructions button shows the instructions the AI gets before you ask anything (the app adds today's date, the names of your files and your Memory notes after them); edit them and Save to change how it answers (Reset brings back the original). The Length limit next to Send sets how long an answer may run, or turns the limit off.
 - **Add your own files.** Your files, at the top, takes PDFs, Word documents, EPUB ebooks, web pages and text files (drop them on the window or choose them), so the AI can search your generator's manual, your medicines list or your family's emergency plan along with the library. They stay on your computer, in the `Survival LLM Files` folder in your home folder; files you put in that folder, or change there, are picked up on their own. It can't read scans or photos of pages yet.
 - **Remembers you.** Tell it your daughter is allergic to penicillin or that you have a Honda generator, and it saves a short note so later chats know it too; each answer shows what it saved, with Undo. Memory, at the top, shows every note in one list you can edit, and a switch turns off the AI's saving (it still reads the notes you keep). The notes stay on your computer, in one plain text file with the app's settings.
-- **Updates itself.** Check for updates, at the bottom of the window, looks for a new version (it also looks once a day while it runs, by fetching one small file from the project's web page; nothing about you is sent). Update now downloads it, checks it, and restarts into it, keeping your models, library, files and settings. Newer libraries are offered there too.
+- **No version checks.** The app never checks for newer app or library releases. Initial library downloads use a catalog included with the app; downloading a model or library starts when you choose it. Install a different app build manually when you want one.
 - **Built for emergencies.** About 1.5 million articles (500,000 in the smaller download): about 930,000 of Wikipedia's most-read articles, WikiMed, MedlinePlus, a UK medicines guide, WikEM, Ready.gov, CDC, U.S. military and FEMA survival and first-aid manuals, the USDA canning guide, risk references for estimating micromorts (life tables, U.S. death rates), wikiHow, iFixit, Appropedia, Energypedia and practical Q&A. See [SOURCES.md](SOURCES.md).
 
 ## Install
@@ -120,7 +120,7 @@ your question ─► local model (Ollama) ─► search_library ─► SQLite fu
 - `app/server.py` serves the chat page on `127.0.0.1` only and runs each turn through `core.py`.
 - `core.py` streams the model's answer and runs its library tools: `search_library`, `read_article`, `show_article`.
 - `web_access.py` adds `search_web` and `read_webpage` for models with tool support. Web access is Automatic by default, with a persistent Off switch in the app. It makes requests only when the AI uses a web tool, with no background connectivity probes. The search query (which may include words from your question) goes to DuckDuckGo's HTML search, and requested URLs go to those websites. The whole chat and file uploads are not sent. No search API key is needed.
-- Failed connections, blocked searches and unreadable pages are shown in the answer's activity and source area. The AI is told to fall back to local information and disclose that it couldn't verify live facts; a new question retries web access, so reconnecting needs no restart. Search providers may require human verification or change their HTML. Pages requiring JavaScript, login, or document downloads cannot be read by the web tool; documents can still be added through Your files. Online source chips open the original page in your browser. Off applies to chat lookups; existing model/library downloads and update checks keep their own controls.
+- Failed connections, blocked searches and unreadable pages are shown in the answer's activity and source area. The AI is told to fall back to local information and disclose that it couldn't verify live facts; a new question retries web access, so reconnecting needs no restart. Search providers may require human verification or change their HTML. Pages requiring JavaScript, login, or document downloads cannot be read by the web tool; documents can still be added through Your files. Online source chips open the original page in your browser. Off applies to chat lookups; model and library downloads start when you choose them.
 - `library/search.py` searches `index.sqlite` (FTS5, BM25 ranking over ~1,500-character passages, official sources ranked higher) and reads the plain-text Markdown shards.
 - `memory.py` keeps the AI's notes about the person (`survival-llm-memory.txt`, with the app's settings) and, while the person allows it, `core.py` gives the model one short extra turn after answers to messages about the person or their family, to say what to remember, change or forget (a JSON reply the app checks and applies). The notes, today's date and the names of the person's files are added after the instructions when a chat starts.
 - `library/myfiles.py` reads the person's own files into a small index of their own (kept with the app's settings) and searches it together with the library.
@@ -159,7 +159,7 @@ Survival LLM Dev is built once into `~/Applications` (`--rebuild` builds it agai
 Ollama as the real app, but its code is a link to this folder, so every start runs the code as it is then; Spotlight
 opens it too. It keeps its own settings, memory and files in `~/Library/Application Support/Survival LLM Dev`, so an
 installed Survival LLM is left alone, and it shares the library and the AI models. A Dev badge and the line at the
-bottom of the window name the branch and commit it runs, and it never updates itself. Its log is
+bottom of the window name the branch and commit it runs. Its log is
 `~/Library/Logs/Survival LLM Dev.log`.
 
 ## Build the library
@@ -184,21 +184,21 @@ To build the shareable downloads:
 LIBRARY_OUT=dist/library-full .venv/bin/python library/build_library.py --public
 LIBRARY_OUT=dist/library-lite .venv/bin/python library/build_library.py --lite
 python3 packaging/make_packs.py --base-url https://github.com/OWNER/survival-llm/releases/download/vX.Y.Z \
-  lite=dist/library-lite full=dist/library-full   # parts for the release + library-packs.json for docs/
+  lite=dist/library-lite full=dist/library-full   # parts for the release + the initial download catalog
 ```
 
-Packs carry a date (`--version`, default today); installed copies offer a pack with a newer date as an update.
+Copy the generated `dist/packs/library-packs.json` into `docs/library-packs.json` before packaging the apps.
+Each app build includes that catalog for initial installation, with fixed download URLs and checksums.
 
 ## Package the apps
 
 ```bash
 packaging/build.sh     # dist/Survival-LLM-mac.zip and dist/Survival-LLM-windows.zip (needs Xcode's command-line tools)
 gh release create "v$(cat packaging/VERSION)" dist/Survival-LLM-mac.zip dist/Survival-LLM-windows.zip
-python3 packaging/make_update.py "What's new" "..."   # writes docs/update.json; publish docs/ afterwards
 ```
 
-Set the version in `packaging/VERSION` first. Installed copies read `docs/update.json` from the project's web page,
-download the zip for their system, check its size and SHA-256, and replace themselves with it.
+Set the local build label in `packaging/VERSION` first. Installed copies never check release feeds or replace
+themselves; new builds are installed manually.
 
 The Mac app bundles a portable Python, pywebview for its window, and Ollama. The Windows app bundles Python and
 pywebview and downloads Ollama on first use (it is 1.6 GB with its graphics-card libraries).

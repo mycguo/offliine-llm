@@ -180,9 +180,6 @@ textarea:focus { border-color: var(--accent); }
 .dialog::backdrop { background: rgba(0, 0, 0, .45); }
 .dialog.wide { width: min(900px, calc(100vw - 32px)); }
 .link { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
-.update-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 16px 0; padding: 8px 12px;
-  border: 1px solid var(--cite-line); background: var(--cite); border-radius: 12px; }
-.update-banner .update-text { flex: 1; min-width: 180px; }
 .dropzone { border: 2px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center; margin: 14px 0 6px; }
 .dropzone p { margin: 0 0 10px; color: var(--muted); }
 .dropzone.over { border-color: var(--accent); background: var(--cite); }
@@ -201,8 +198,6 @@ textarea:focus { border-color: var(--accent); }
 .drop-overlay { position: fixed; inset: 12px; z-index: 50; display: grid; place-items: center; pointer-events: none;
   border: 3px dashed var(--accent); border-radius: 16px; background: color-mix(in srgb, var(--bg) 85%, transparent);
   color: var(--accent); font-size: 22px; font-weight: 600; }
-#updates-body h3 { margin: 14px 0 4px; font-size: 16px; }
-#updates-body .notes { margin: 8px 0; padding-left: 20px; }
 .prompt-text { width: 100%; box-sizing: border-box; min-height: 55vh; resize: vertical; padding: 12px;
   font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--text); background: var(--bg);
   border: 1px solid var(--line); border-radius: 10px; }

@@ -38,8 +38,9 @@ copy_app() {  # $1 = destination folder for the app code
   cp "$REPO/library/search.py" "$REPO/library/passages.py" "$REPO/library/myfiles.py" "$1/library/"
   cp "$REPO/app/server.py" "$1/app/"
   cp "$REPO/app/static/"* "$1/app/static/"
+  cp "$REPO/docs/library-packs.json" "$1/"
   cp "$REPO/LICENSE" "$REPO/README.md" "$REPO/SOURCES.md" "$1/"
-  echo "$VERSION" > "$1/version.txt"  # the app compares it with the published update.json
+  echo "$VERSION" > "$1/version.txt"  # local build label
 }
 
 fetch_ollama() {  # $1 = release file name; checked against Ollama's published checksums
