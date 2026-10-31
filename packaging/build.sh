@@ -34,7 +34,7 @@ fetch_python() {  # $1 = target triple
 
 copy_app() {  # $1 = destination folder for the app code
   mkdir -p "$1/library" "$1/app/static"
-  cp "$REPO/core.py" "$REPO/memory.py" "$1/"
+  cp "$REPO/core.py" "$REPO/memory.py" "$REPO/web_access.py" "$1/"
   cp "$REPO/library/search.py" "$REPO/library/passages.py" "$REPO/library/myfiles.py" "$1/library/"
   cp "$REPO/app/server.py" "$1/app/"
   cp "$REPO/app/static/"* "$1/app/static/"

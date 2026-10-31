@@ -40,6 +40,7 @@ from core import HOST, capabilities, chat_events, installed_models, system_promp
 from library import myfiles  # noqa: E402
 from memory import MAX_CHARS as MEMORY_MAX, Memory, parse as parse_notes, prompt_section, size as notes_size  # noqa: E402
 from library.search import DB_PATH, LIB, TOPICS, Library  # noqa: E402
+from web_access import WebAccess  # noqa: E402
 
 # Check web certificates the way the computer itself does, with the Mac's Keychain or the Windows certificate store.
 # The bundled Python only knows a fixed list, so behind a company's or an antivirus's own certificate the library,
@@ -1115,7 +1116,7 @@ class Handler(BaseHTTPRequestHandler):
             doc = library().document(int(query.get("id", 0))) if library() else None
             return self._send(200 if doc else 404, doc or {"error": "not found"})
         if url.path == "/api/prompt":
-            return self._send(200, {"default": system_prompt(library(), True), "custom": custom_prompt()})
+            return self._send(200, {"default": system_prompt(library(), True, MEMORY.web_enabled), "custom": custom_prompt()})
         if url.path == "/api/memory":
             return self._send(200, {"text": "\n".join(MEMORY.notes()), "ai_writes": MEMORY.ai_writes,
                                     "max_chars": MEMORY_MAX})
@@ -1162,7 +1163,7 @@ class Handler(BaseHTTPRequestHandler):
             "packs_error": None if docs else manifest["error"],
             "library_dir": LIB, "disk_free_gb": disk_free_gb(),
             "my_files": {"ready": mine, "busy": myfiles.progress["busy"]},
-            "version": VERSION, "dev": DEV,
+            "version": VERSION, "dev": DEV, "web_enabled": MEMORY.web_enabled,
             "update": {"app": (newer_app() or {}).get("version"), "library": bool(newer_library())},
             "machine": {"os": "macOS" if sys.platform == "darwin" else platform.system(), "ram_gb": ram_gb()},
             "topics": TOPICS}
@@ -1177,6 +1178,15 @@ class Handler(BaseHTTPRequestHandler):
         model = str(body.get("model") or "")
         if model and not re.fullmatch(r"[\w.:/-]{1,120}", model):
             return self._send(400, {"error": "bad model name"})
+        if url.path == "/api/web":
+            if not isinstance(body.get("enabled"), bool):
+                return self._send(400, {"error": "enabled must be true or false"})
+            try:
+                MEMORY.set_web_enabled(body["enabled"])
+            except OSError as exc:
+                return self._send(500, {"error": save_failed(exc, MEMORY.settings_path)})
+            # Active turns consult the same switch before every web request, including redirects.
+            return self._send(200, {"web_enabled": MEMORY.web_enabled})
         if url.path == "/api/prompt":  # save the person's instructions ("" or reset: back to the default)
             text = "" if body.get("reset") else str(body.get("text") or "").strip()
             os.makedirs(APP_DIR, exist_ok=True)
@@ -1342,8 +1352,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(400, {"error": "model and message are required"})
         conv = conversations.setdefault(body.get("conversation") or uuid.uuid4().hex, {"model": None, "run": 0})
         caps = model_caps(model)
+        web_enabled = MEMORY.web_enabled
         if conv.get("model") != model:  # new chat, or the model changed mid-chat
             conv.update(model=model, messages=[{"role": "system", "content": prompt_for(caps)}])
+        elif conv.get("web_enabled") != web_enabled or conv.get("date") != datetime.date.today():
+            conv["messages"][0]["content"] = prompt_for(caps)
+        conv.update(web_enabled=web_enabled, date=datetime.date.today())
         conv["run"] += 1  # a newer question on this chat stops any older one still running
         run = conv["run"]
         messages = conv["messages"]
@@ -1352,7 +1366,8 @@ class Handler(BaseHTTPRequestHandler):
         trim(messages)
         self._stream_start()
         events = chat_events(model, library(), messages, reasoning=str(body.get("reasoning") or "off"), caps=caps,
-                             length=str(body.get("length") or "normal"), memory=MEMORY)
+                             length=str(body.get("length") or "normal"), memory=MEMORY,
+                             web=WebAccess(lambda: MEMORY.web_enabled) if web_enabled else None)
         answered, last_tick = False, 0.0  # answered: the answer went out (a memory step may follow it)
         try:
             for event in events:
@@ -1393,7 +1408,14 @@ def prompt_for(caps):
     tools = "tools" in caps
     files = [(it["name"], it["title"]) for it in myfiles.items(MY_DB) if it["status"] == "ready"]
     extra = prompt_section(MEMORY.notes(), MEMORY.ai_writes, files, datetime.date.today())
-    return (custom_prompt() or system_prompt(library(), tools)) + (f"\n\n{extra}" if extra else "")
+    custom = custom_prompt()
+    prompt = custom or system_prompt(library(), tools, MEMORY.web_enabled)
+    if custom:
+        from core import WEB_PROMPT
+        prompt += "\n\nCurrent web access (overrides earlier statements about connectivity):\n" + (
+            WEB_PROMPT if MEMORY.web_enabled and tools else
+            "Web tools are unavailable for this answer. Use local sources; do not claim to have checked online.")
+    return prompt + (f"\n\n{extra}" if extra else "")
 
 
 def open_window(url):
